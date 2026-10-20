@@ -1,4 +1,4 @@
-# Susan
+# Personal Assistant
 
 A lightweight local voice controlled personal assistant that captures microphone input, transcribes via local `whisper-server`, parses intent using an SLM (Qwen 2.5 3B), and controls Home Assistant devices.
 
