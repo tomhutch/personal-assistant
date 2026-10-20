@@ -6,8 +6,21 @@ A lightweight local voice controlled personal assistant that captures microphone
 
 ## Quickstart Guide
 
-### 1. Clone & Set Up Virtual Environment
+### Set Up Virtual Environment
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+### Test
+
+```bash
+make test
+```
+
+### Run
+
+```
+make run
+```
