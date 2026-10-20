@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import logging
 import sounddevice as sd
@@ -20,18 +21,50 @@ def main_loop():
         logger.error("❌ Error: HA_TOKEN environment variable is not set!")
         return
 
-    logger.info("🔍 Fetching live devices from Home Assistant...")
-    devices = fetch_ha_devices()
-    if not devices:
-        logger.warning("⚠️ No devices found or failed to connect to Home Assistant.")
-        return
-    
-    device_list_str = json.dumps(devices, indent=2)
-    logger.info("➜ Discovered %d controllable device(s).", len(devices))
-    for d in devices:
-        logger.info("  - %s (%s)", d['name'], d['entity_id'])
+    # Initialize the 3-second ring buffer
+    rolling_buffer = RollingAudioBuffer(duration_seconds=3.0)
 
-    dynamic_system_prompt = f"""You are a low-latency smart home tool router for Home Assistant.
+    def audio_callback(indata, frames, time_info, status):
+        block = indata[:, 0].copy()
+        rolling_buffer.append(block)
+
+    logger.info("🚀 Starting background audio stream & ring buffer...")
+    
+    try:
+        # Start the continuous background audio stream
+        with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, callback=audio_callback):
+            while True:
+                # Step 1: Monitor ring buffer for 'Hey Susan'
+                wake_triggered = listen_for_wake_word(rolling_buffer)
+                
+                if wake_triggered:
+                    # Step 2: Record command AND fetch devices in parallel.
+                    # While you are speaking your command, we fetch devices from HA in the background.
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        device_future = executor.submit(fetch_ha_devices)
+                        command_audio = record_utterance()
+                        devices = device_future.result()
+
+                    # Step 3: Transcribe command via Whisper
+                    logger.info("🔄 Transcribing command via Whisper...")
+                    transcript = transcribe_audio(command_audio)
+                    logger.info("➜ Transcript: '%s'", transcript)
+
+                    if not transcript.strip():
+                        logger.warning("⚠️ Empty transcript, returning to standby.\n")
+                        rolling_buffer.clear()
+                        continue
+
+                    # Step 4: Validate fetched devices
+                    if not devices:
+                        logger.warning("⚠️ No devices found or failed to connect to Home Assistant.")
+                        rolling_buffer.clear()
+                        continue
+                    
+                    device_list_str = json.dumps(devices, indent=2)
+                    logger.info("➜ Discovered %d controllable device(s).", len(devices))
+
+                    dynamic_system_prompt = f"""You are a low-latency smart home tool router for Home Assistant.
 Analyze the user's transcript and match their intent to one of the available devices below.
 
 Available Devices:
@@ -50,37 +83,7 @@ Rules:
 3. OUTPUT STRICT RAW JSON ONLY. No markdown syntax, no explanations.
 """
 
-    # Initialize the 3-second ring buffer
-    rolling_buffer = RollingAudioBuffer(duration_seconds=3.0)
-
-    def audio_callback(indata, frames, time_info, status):
-        block = indata[:, 0].copy()
-        rolling_buffer.append(block)
-
-    logger.info("🚀 Starting background audio stream & ring buffer...")
-    
-    try:
-        # Start the continuous background audio stream
-        with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, callback=audio_callback):
-            while True:
-                # Step 1: Monitor ring buffer for 'Hey Susan'
-                wake_triggered = listen_for_wake_word(rolling_buffer)
-                
-                if wake_triggered:
-                    # Step 2: Record command
-                    command_audio = record_utterance()
-                    
-                    # Step 3: Transcribe command via Whisper
-                    logger.info("🔄 Transcribing command via Whisper...")
-                    transcript = transcribe_audio(command_audio)
-                    logger.info("➜ Transcript: '%s'", transcript)
-
-                    if not transcript.strip():
-                        logger.warning("⚠️ Empty transcript, returning to standby.\n")
-                        rolling_buffer.clear()
-                        continue
-
-                    # Step 4: Parse intent via Qwen SLM
+                    # Step 5: Parse intent via Qwen SLM using the fresh device list
                     logger.info("🧠 Parsing intent with Qwen SLM...")
                     tool_payload = parse_intent_with_slm(transcript, dynamic_system_prompt)
                     if not tool_payload:
@@ -97,7 +100,7 @@ Rules:
                         rolling_buffer.clear()
                         continue
 
-                    # Step 5: Fire Home Assistant Service Request
+                    # Step 6: Fire Home Assistant Service Request
                     logger.info("⚡ Executing on Home Assistant: %s -> %s", service, entity_id)
                     trigger_ha_service(domain, service, entity_id)
                     
