@@ -4,7 +4,7 @@ import re
 
 from config import SLM_URL
 
-def parse_intent_with_slm(transcript, dynamic_system_prompt):
+def parse_intent(transcript, dynamic_system_prompt):
     """Sends transcript to Qwen SLM and parses structured JSON response."""
     print("⚡ Parsing intent via Qwen 3B...")
     payload = {

@@ -1,37 +1,39 @@
 import logging
 import requests
-import tempfile
-import os
-from scipy.io.wavfile import write
-
-from config import SAMPLE_RATE, WHISPER_URL
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
-def transcribe_audio(audio_np):
-    """Sends audio buffer to Whisper server and returns transcript string."""
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
-        temp_wav_path = tmp_audio.name
+WHISPER_URL = "http://localhost:8081/inference"
 
+def transcribe_audio(audio_np: np.ndarray) -> str:
+    """Sends audio numpy array to local Whisper endpoint and returns transcript text."""
+    logger.info("🔄 Transcribing audio via Whisper...")
+    
+    # Ensure audio is float32 and convert to bytes if needed by the endpoint
+    audio_bytes = audio_np.astype(np.float32).tobytes()
+    
     try:
-        write(temp_wav_path, SAMPLE_RATE, audio_np)
-        logger.info("🔄 Transcribing audio via Whisper...")
+        response = requests.post(
+            WHISPER_URL,
+            data=audio_bytes,
+            headers={"Content-Type": "application/octet-stream"},
+            timeout=5.0
+        )
         
-        with open(temp_wav_path, "rb") as f:
-            resp = requests.post(
-                WHISPER_URL,
-                files={"file": f},
-                data={"response_format": "json"}
-            )
+        # Guard against server error status codes (e.g., 500, 404)
+        if response.status_code != 200:
+            logger.error("❌ Whisper API returned error status %d", response.status_code)
+            return ""
             
-        resp.raise_for_status()
-        transcript = resp.json().get("text", "").strip()
-        logger.debug("Whisper response text: '%s'", transcript)
-        return transcript
+        data = response.json()
+        # Handle different whisper response formats safely
+        text = data.get("text", "") or data.get("transcription", "")
+        if not isinstance(text, str):
+            return ""
+            
+        return text.strip()
         
-    except Exception as e:
-        logger.error("❌ Transcription failed: %s", e)
+    except requests.RequestException as e:
+        logger.error("❌ Failed to connect to Whisper service: %s", e)
         return ""
-    finally:
-        if os.path.exists(temp_wav_path):
-            os.remove(temp_wav_path)

@@ -14,17 +14,10 @@ BLOCK_SIZE = int(SAMPLE_RATE * BLOCK_DURATION)
 WAKE_WORD = "susan"
 WAKE_WORD_MULTIPLIER = 1.8   # Wake word sensitivity multiplier (Lower = more sensitive, Higher = less sensitive)
 
-# Adaptive VAD Configuration (Relative Threshold)
-VAD_MULTIPLIER = 3.0         # Speech energy must be 3x the current room noise floor
-VAD_SMOOTHING = 0.95         # How fast the baseline adapts to background noise changes (0.9 - 0.99)
-MIN_NOISE_FLOOR = 0.0001     # Absolute floor safety limit to prevent division by zero
-
-# Timing & Windows (in seconds)
-WAKE_WORD_WINDOW = 2.5       # Size of rolling window sent to Whisper for wake word
-START_TIMEOUT = 5.0          # Max time to wait for you to start talking after wake word
-SILENCE_TIMEOUT = 1.2        # Pause duration to consider speech finished during command
-MAX_COMMAND_TIME = 10.0      # Absolute max recording length to prevent hanging on noise
-QUEUE_TIMEOUT = 0.1          # Timeout for checking the audio queue
+# Command recording configuration
+COMMAND_MAX_DURATION = 10.0         # Hard safety limit for command recording in seconds
+COMMAND_SPEECH_MULTIPLIER = 1.8     # Multiplier above noise floor to detect speech
+COMMAND_POST_SPEECH_WINDOW = 2      # Fixed recording duration after speech starts (music-proof)
 
 # Read log level from environment variable, default to INFO if not set
 LOG_LEVEL_STR = os.getenv("LOG_LEVEL", "INFO").upper()

@@ -1,51 +1,61 @@
+import logging
 import requests
 from config import HA_URL, HA_TOKEN
 
+logger = logging.getLogger(__name__)
+
 def fetch_ha_devices():
-    """Dynamically queries Home Assistant to get a live list of controllable entities."""
+    """Fetches all states from Home Assistant and filters for controllable switches/lights."""
     headers = {
         "Authorization": f"Bearer {HA_TOKEN}",
         "Content-Type": "application/json",
     }
+    
     try:
-        resp = requests.get(f"{HA_URL}/api/states", headers=headers)
-        if resp.status_code != 200:
-            print(f"⚠️ Failed to fetch devices from HA: {resp.status_code}")
+        response = requests.get(f"{HA_URL}/api/states", headers=headers, timeout=5.0)
+        if response.status_code != 200:
+            logger.error("❌ Failed to fetch HA states. Status: %d", response.status_code)
             return []
-        
-        states = resp.json()
-        devices = []
-        supported_domains = ("switch.", "light.", "fan.")
+            
+        states = response.json()
+        controllable = []
         
         for state in states:
             entity_id = state.get("entity_id", "")
-            if "_network_led" in entity_id or "_indicator" in entity_id:
-                continue
-
-            if entity_id.startswith(supported_domains):
-                friendly_name = state.get("attributes", {}).get("friendly_name", entity_id)
-                domain = entity_id.split(".")[0]
-                devices.append({
+            if entity_id.startswith("switch.") or entity_id.startswith("light."):
+                controllable.append({
                     "entity_id": entity_id,
-                    "name": friendly_name,
-                    "domain": domain
+                    "name": state.get("attributes", {}).get("friendly_name", entity_id),
+                    "state": state.get("state")
                 })
-        return devices
-    except Exception as e:
-        print(f"⚠️ Error connecting to HA for device discovery: {e}")
+                
+        logger.info("➜ Discovered %d controllable device(s).", len(controllable))
+        return controllable
+        
+    except requests.RequestException as e:
+        logger.error("❌ Error connecting to Home Assistant: %s", e)
         return []
 
-def trigger_ha_service(domain, service, entity_id):
-    """Fires a POST request to Home Assistant service endpoint."""
-    ha_endpoint = f"{HA_URL}/api/services/{domain}/{service}"
+# Alias for backward compatibility if needed
+get_ha_devices = fetch_ha_devices
+
+def execute_ha_command(domain: str, service: str, entity_id: str) -> bool:
+    """Executes a service call on a Home Assistant entity (e.g., switch/turn_off)."""
     headers = {
         "Authorization": f"Bearer {HA_TOKEN}",
         "Content-Type": "application/json",
     }
-    ha_payload = {"entity_id": entity_id}
-
-    print(f"🚀 Firing POST to Home Assistant for {entity_id}...")
-    api_resp = requests.post(ha_endpoint, headers=headers, json=ha_payload)
-    print(f"   ➜ HA API Status Code: {api_resp.status_code}")
-    print(f"   ➜ HA Response: {api_resp.text}\n")
-    return api_resp
+    payload = {"entity_id": entity_id}
+    
+    try:
+        url = f"{HA_URL}/api/services/{domain}/{service}"
+        logger.info("🚀 Firing POST to Home Assistant for %s...", entity_id)
+        response = requests.post(url, headers=headers, json=payload, timeout=5.0)
+        
+        logger.info("  ➜ HA API Status Code: %d", response.status_code)
+        logger.info("  ➜ HA Response: %s", response.json() if response.content else "[]")
+        
+        return response.status_code == 200
+    except requests.RequestException as e:
+        logger.error("❌ Failed to execute Home Assistant command: %s", e)
+        return False
