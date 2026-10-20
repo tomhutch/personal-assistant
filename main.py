@@ -22,13 +22,14 @@ logger = logging.getLogger(__name__)
 def handle_voice_command(noise_floor):
     """
     Orchestrates a single voice command interaction:
-    1. Fetches HA devices in parallel with recording.
-    2. Records the utterance.
-    3. Transcribes and parses intent.
-    4. Executes the Home Assistant service call.
+    1. Fetches HA devices in parallel with recording utterance.
+    2. Builds a lean, precise vocabulary prompt from active device names.
+    3. Transcribes audio via Whisper using the priming prompt.
+    4. Parses intent and executes the Home Assistant service call.
     """
     logger.info("🎤 Command mode active. Initializing parallel tasks...")
     
+    # Run Home Assistant device fetching in parallel with recording utterance
     with ThreadPoolExecutor(max_workers=1) as executor:
         future_devices = executor.submit(fetch_ha_devices)
         audio_data = record_utterance(noise_floor)
@@ -38,8 +39,15 @@ def handle_voice_command(noise_floor):
         logger.warning("⚠️ No audio recorded. Returning to standby.")
         return
 
-    logger.info("🔄 Transcribing command via Whisper...")
-    transcript = transcribe_audio(audio_data)
+    # Build a lean context prompt: strict action verbs and your actual device names
+    device_names = [d.get("name", "") for d in controllable_devices]
+    prompt_context = (
+        f"Turn on. Turn off. "
+        f"Devices: {', '.join(device_names)}."
+    )
+
+    logger.info("🔄 Transcribing command via Whisper (with lean context prompt)...")
+    transcript = transcribe_audio(audio_data, prompt=prompt_context)
     logger.info("➜ Transcript: '%s'", transcript)
 
     if not transcript or "[blank_audio]" in transcript.lower():
