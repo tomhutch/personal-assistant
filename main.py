@@ -1,4 +1,6 @@
 import logging
+import signal
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from config import LOG_LEVEL, SAMPLE_RATE
@@ -19,14 +21,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Global shutdown flag for graceful termination
+shutdown_event = threading.Event()
+
+def signal_handler(sig, frame):
+    """Handles SIGINT (Ctrl+C) and SIGTERM gracefully."""
+    logger.info("🛑 Termination signal received. Shutting down gracefully...")
+    shutdown_event.set()
+    sys.exit(0)
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
 def handle_voice_command(noise_floor):
     """
     Orchestrates a single voice command interaction:
     1. Fetches HA devices in parallel with recording utterance.
-    2. Builds a lean, precise vocabulary prompt from active device names.
+    2. Builds a lean vocabulary prompt from active device names.
     3. Transcribes audio via Whisper using the priming prompt.
     4. Parses intent and executes the Home Assistant service call.
     """
+    if shutdown_event.is_set():
+        return
+
     logger.info("🎤 Command mode active. Initializing parallel tasks...")
     
     # Run Home Assistant device fetching in parallel with recording utterance
@@ -35,8 +53,8 @@ def handle_voice_command(noise_floor):
         audio_data = record_utterance(noise_floor)
         controllable_devices = future_devices.result()
 
-    if len(audio_data) == 0:
-        logger.warning("⚠️ No audio recorded. Returning to standby.")
+    if shutdown_event.is_set() or len(audio_data) == 0:
+        logger.warning("⚠️ No audio recorded or shutdown requested. Returning to standby.")
         return
 
     # Build a lean context prompt: strict action verbs and your actual device names
@@ -50,13 +68,16 @@ def handle_voice_command(noise_floor):
     transcript = transcribe_audio(audio_data, prompt=prompt_context)
     logger.info("➜ Transcript: '%s'", transcript)
 
-    if not transcript or "[blank_audio]" in transcript.lower():
-        logger.info("⚠️ Empty or silent transcript. Returning to standby.")
+    if shutdown_event.is_set() or not transcript or "[blank_audio]" in transcript.lower():
+        logger.info("⚠️ Empty transcript or shutdown requested. Returning to standby.")
         return
 
     logger.info("🧠 Parsing intent with Qwen SLM...")
     intent = parse_intent(transcript, controllable_devices)
     
+    if shutdown_event.is_set():
+        return
+
     if intent and "domain" in intent and "service" in intent and "entity_id" in intent:
         logger.info(
             "⚡ Executing on Home Assistant: %s -> %s", 
@@ -76,18 +97,19 @@ def main_loop():
     def audio_callback(indata, frames, time_info, status):
         if status:
             logger.debug("Audio stream status: %s", status)
-        rolling_buffer.append(indata[:, 0].copy())
+        if not shutdown_event.is_set():
+            rolling_buffer.append(indata[:, 0].copy())
 
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype='float32', callback=audio_callback):
-        while True:
+        while not shutdown_event.is_set():
             wake_triggered, noise_floor = listen_for_wake_word(rolling_buffer)
             
-            if wake_triggered:
+            if wake_triggered and not shutdown_event.is_set():
                 handle_voice_command(noise_floor)
                 logger.info("💤 Returning to standby...\n")
 
 if __name__ == "__main__":
     try:
         main_loop()
-    except KeyboardInterrupt:
-        logger.info("🛑 Assistant stopped by user.")
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("🛑 Assistant stopped cleanly.")

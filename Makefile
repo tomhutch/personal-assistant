@@ -13,4 +13,4 @@ debug:
 	LOG_LEVEL=DEBUG PYTHONPATH=. python main.py
 
 test:
-	PYTHONPATH=. pytest -v
+	PYTHONPATH=. python -m pytest -v
