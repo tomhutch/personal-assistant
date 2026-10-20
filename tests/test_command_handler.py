@@ -1,14 +1,14 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import numpy as np
-from main import handle_voice_command
+from command_handler import handle_voice_command
 
 class TestHandleVoiceCommand:
-    @patch("main.execute_ha_command")
-    @patch("main.parse_intent")
-    @patch("main.transcribe_audio")
-    @patch("main.record_utterance")
-    @patch("main.fetch_ha_devices")  # Updated to match main.py's import
+    @patch("command_handler.execute_ha_command")
+    @patch("command_handler.parse_intent")
+    @patch("command_handler.transcribe_audio")
+    @patch("command_handler.record_utterance")
+    @patch("command_handler.fetch_ha_devices")  # Updated to match command_handler.py's import
     def test_scenario_successful_command_execution(
         self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse, mock_exec
     ):
@@ -30,10 +30,10 @@ class TestHandleVoiceCommand:
         mock_parse.assert_called_once()
         mock_exec.assert_called_once_with("switch", "turn_off", "switch.sonoff_s60zbtpg")
 
-    @patch("main.execute_ha_command")
-    @patch("main.transcribe_audio")
-    @patch("main.record_utterance")
-    @patch("main.fetch_ha_devices")  # Updated to match main.py's import
+    @patch("command_handler.execute_ha_command")
+    @patch("command_handler.transcribe_audio")
+    @patch("command_handler.record_utterance")
+    @patch("command_handler.fetch_ha_devices")  # Updated to match command_handler.py's import
     def test_scenario_empty_audio_handling(
         self, mock_fetch_devices, mock_record, mock_transcribe, mock_exec
     ):
