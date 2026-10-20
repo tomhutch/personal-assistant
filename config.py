@@ -1,4 +1,5 @@
 import os
+import logging
 
 # API Endpoints
 WHISPER_URL = "http://localhost:8081/inference"
@@ -23,3 +24,7 @@ START_TIMEOUT = 5.0          # Max time to wait for you to start talking after w
 SILENCE_TIMEOUT = 1.2        # Pause duration to consider speech finished during command
 MAX_COMMAND_TIME = 10.0      # Absolute max recording length to prevent hanging on noise
 QUEUE_TIMEOUT = 0.1          # Timeout for checking the audio queue
+
+# Read log level from environment variable, default to INFO if not set
+LOG_LEVEL_STR = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_LEVEL = getattr(logging, LOG_LEVEL_STR, logging.INFO)
