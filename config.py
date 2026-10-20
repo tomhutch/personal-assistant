@@ -12,6 +12,7 @@ SAMPLE_RATE = 16000          # 16kHz is ideal for Whisper
 BLOCK_DURATION = 0.1         # 100ms per audio block
 BLOCK_SIZE = int(SAMPLE_RATE * BLOCK_DURATION)
 WAKE_WORD = "susan"
+WAKE_WORD_MULTIPLIER = 1.8   # Wake word sensitivity multiplier (Lower = more sensitive, Higher = less sensitive)
 
 # Adaptive VAD Configuration (Relative Threshold)
 VAD_MULTIPLIER = 3.0         # Speech energy must be 3x the current room noise floor
