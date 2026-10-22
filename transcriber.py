@@ -3,11 +3,9 @@ import requests
 import numpy as np
 import io
 import wave
-from config import SAMPLE_RATE
+from config import SAMPLE_RATE, WHISPER_URL
 
 logger = logging.getLogger(__name__)
-
-WHISPER_URL = "http://localhost:8081/inference"
 
 def transcribe_audio(audio_np: np.ndarray, prompt: str = "") -> str:
     """Sends audio numpy array as an in-memory WAV file to Whisper with an optional vocabulary prompt."""

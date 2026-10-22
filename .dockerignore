@@ -1,0 +1,18 @@
+# Version control
+.git
+
+# Python environments & caches
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+
+# Build & deployment artifacts (large, and never needed inside the image)
+dist
+models
+llama.cpp
+whisper.cpp
+
+# Secrets - never put the real env file in a build context
+.env

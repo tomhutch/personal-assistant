@@ -1,0 +1,14 @@
+[Unit]
+Description=Personal Assistant (Standalone Binary)
+After=network.target llama-server.service whisper-server.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/personal-assistant
+EnvironmentFile=/home/ubuntu/personal-assistant/.env
+ExecStart=/home/ubuntu/personal-assistant/personal-assistant
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,22 @@
+# Secrets - never commit the real environment file
+.env
+
+# Python virtualenvs
+.venv/
+venv/
+
+# Python build artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Deployment artifacts created by setup.sh on the server
+models/
+llama.cpp/
+whisper.cpp/
+
+# Standalone binary build output (Dockerfile.builder -> dist/)
+dist/
+
+# The deployed binary (copied into the repo root on the server)
+/personal-assistant

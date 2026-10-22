@@ -1,10 +1,10 @@
 import os
 import logging
 
-# API Endpoints
-WHISPER_URL = "http://localhost:8081/inference"
-SLM_URL = "http://localhost:8080/v1/chat/completions"  # Qwen 2.5 3B endpoint
-HA_URL = "http://localhost:8123"
+# API Endpoints (overridable via environment variables, e.g. from .env under systemd)
+WHISPER_URL = os.getenv("WHISPER_URL", "http://localhost:8081/inference")
+SLM_URL = os.getenv("SLM_URL", "http://localhost:8080/v1/chat/completions")  # Qwen 2.5 3B endpoint
+HA_URL = os.getenv("HA_URL", "http://localhost:8123")
 HA_TOKEN = os.getenv("HA_TOKEN")
 
 # Audio Configuration

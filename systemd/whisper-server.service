@@ -1,0 +1,16 @@
+[Unit]
+Description=Whisper Server (whisper.cpp)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/personal-assistant/whisper.cpp
+ExecStart=/home/ubuntu/personal-assistant/whisper.cpp/build/bin/whisper-server \
+  -m /home/ubuntu/personal-assistant/whisper.cpp/models/ggml-base.en.bin \
+  --port 8081 \
+  --host 127.0.0.1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
