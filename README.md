@@ -46,9 +46,12 @@ docker build --platform linux/amd64 -f Dockerfile.builder -o ./dist .
 ```
 
 This produces `dist/personal-assistant`, a self-contained Linux executable (the
-interpreter and all dependencies are embedded). For an ARM64 server (e.g. AWS
-Graviton), rebuild with `--platform linux/arm64`. The binary is platform-specific —
-build it for the server's architecture.
+interpreter and all dependencies are embedded). The binary is platform-specific —
+build it for the server's architecture. For an ARM64 server (e.g. AWS Graviton):
+
+```bash
+make binary PLATFORM=linux/arm64
+```
 
 ### 2. Deploy to the server
 

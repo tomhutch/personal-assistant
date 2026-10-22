@@ -18,5 +18,9 @@ test:
 
 # Requires Docker. Output: dist/personal-assistant - copy it to the server's
 # repo root before running setup.sh there (see README, "Deploying on Ubuntu").
+# The binary is platform-specific; for an ARM64 server use:
+#   make binary PLATFORM=linux/arm64
+PLATFORM ?= linux/amd64
+
 binary:
-	docker build --platform linux/amd64 -f Dockerfile.builder -o ./dist .
+	docker build --platform $(PLATFORM) -f Dockerfile.builder -o ./dist .
