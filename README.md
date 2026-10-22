@@ -6,11 +6,53 @@ A lightweight local voice controlled personal assistant that captures microphone
 
 ## Quickstart Guide
 
+### Prerequisites
+
+```bash
+# macOS
+brew install cmake
+# Ubuntu
+sudo apt update && sudo apt install -y cmake build-essential git curl
+```
+
 ### Set Up Virtual Environment
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+### Start the Llama Server (Qwen 2.5 3B SLM, port 8080)
+
+```bash
+git clone https://github.com/ggml-org/llama.cpp.git
+cmake -S llama.cpp -B llama.cpp/build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=ON
+cmake --build llama.cpp/build --config Release --target llama-server --parallel
+
+mkdir -p models
+curl -L --fail -o models/qwen2.5-3b-instruct-q4_k_m.gguf \
+  https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf
+
+./llama.cpp/build/bin/llama-server \
+  -m models/qwen2.5-3b-instruct-q4_k_m.gguf \
+  --port 8080 --ctx-size 2048 \
+  -fa on --cache-prompt --cache-reuse 256 \
+  --host 127.0.0.1
+```
+
+### Start the Whisper Server (port 8081)
+
+In a second terminal:
+
+```bash
+git clone https://github.com/ggml-org/whisper.cpp.git
+cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release
+cmake --build whisper.cpp/build --config Release --target whisper-server --parallel
+(cd whisper.cpp && bash ./models/download-ggml-model.sh base.en)
+
+./whisper.cpp/build/bin/whisper-server \
+  -m whisper.cpp/models/ggml-base.en.bin \
+  --port 8081 --host 127.0.0.1
 ```
 
 ### Test
@@ -21,9 +63,15 @@ make test
 
 ### Run
 
+With both servers running:
+
 ```
 make run
 ```
+
+The app finds the servers via `WHISPER_URL` (default `http://localhost:8081/inference`) and
+`SLM_URL` (default `http://localhost:8080/v1/chat/completions`), so no extra configuration
+is needed.
 
 ---
 
