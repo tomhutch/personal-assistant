@@ -20,3 +20,5 @@ dist/
 
 # The deployed binary (copied into the repo root on the server)
 /personal-assistant
+/build/personal-assistant/
+personal-assistant.spec
