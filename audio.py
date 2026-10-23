@@ -48,6 +48,37 @@ class RollingAudioBuffer:
 def get_audio_rms(block):
     return np.sqrt(np.mean(block**2))
 
+def find_input_device():
+    """
+    Finds a usable audio input device by index.
+
+    PortAudio's implicit default input device (-1) is sometimes unset or
+    points at a broken device, in which case opening a stream fails with
+    "Error querying device -1". Enumerate the devices and pick a real
+    input device explicitly instead:
+
+    1. Prefer USB input devices.
+    2. Otherwise use any input device that is not a virtual loopback.
+
+    Returns the device index, or None if no usable input device exists.
+    """
+    try:
+        devices = sd.query_devices()
+        logger.debug(f"available sounddevice devices: {devices}")
+    except Exception:
+        logger.error("Failed to query PortAudio devices", exc_info=True)
+        return None
+
+    for idx, dev in enumerate(devices):
+        if dev["max_input_channels"] > 0 and "usb" in dev["name"].lower():
+            return idx
+
+    for idx, dev in enumerate(devices):
+        if dev["max_input_channels"] > 0 and "loopback" not in dev["name"].lower():
+            return idx
+
+    return None
+
 def listen_for_wake_word(rolling_buffer):
     """Continuously inspects background buffer, ignoring music/noise hallucinations."""
     logger.info("💤 Listening for wake word ('Hey Susan')... [Adaptive Noise Gate Active]")
@@ -122,8 +153,13 @@ def record_utterance(noise_floor):
     speech_detected = False
     post_speech_duration = 0.0
     total_duration = 0.0
-    
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype='float32') as stream:
+
+    device = find_input_device()
+    if device is None:
+        logger.error("❌ No usable audio input device found; cannot record utterance.")
+        return np.array([], dtype=np.float32)
+
+    with sd.InputStream(device=device, samplerate=SAMPLE_RATE, channels=1, dtype='float32') as stream:
         while total_duration < COMMAND_MAX_DURATION:
             audio_block, _ = stream.read(chunk_samples)
             block = audio_block[:, 0]
