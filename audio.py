@@ -50,17 +50,8 @@ def get_audio_rms(block):
 
 def find_input_device():
     """
-    Finds a usable audio input device by index.
-
-    PortAudio's implicit default input device (-1) is sometimes unset or
-    points at a broken device, in which case opening a stream fails with
-    "Error querying device -1". Enumerate the devices and pick a real
-    input device explicitly instead:
-
-    1. Prefer USB input devices.
-    2. Otherwise use any input device that is not a virtual loopback.
-
-    Returns the device index, or None if no usable input device exists.
+    Finds a usable audio input device by index, avoiding raw ALSA hardware 
+    paths (hw:) which can cause sample rate or resource lock errors.
     """
     try:
         devices = sd.query_devices()
@@ -69,12 +60,26 @@ def find_input_device():
         logger.error("Failed to query PortAudio devices", exc_info=True)
         return None
 
+    # Priority 1: USB input devices managed by the sound server (excluding raw 'hw:')
     for idx, dev in enumerate(devices):
-        if dev["max_input_channels"] > 0 and "usb" in dev["name"].lower():
+        if (dev["max_input_channels"] > 0 
+            and "usb" in dev["name"].lower() 
+            and "hw:" not in dev["name"]):
+            logger.debug(f"selected usb sounddevice: {idx} {dev}")
             return idx
 
+    # Priority 2: Any input device that is not a loopback and not a raw 'hw:' device
     for idx, dev in enumerate(devices):
-        if dev["max_input_channels"] > 0 and "loopback" not in dev["name"].lower():
+        if (dev["max_input_channels"] > 0 
+            and "loopback" not in dev["name"].lower() 
+            and "hw:" not in dev["name"]):
+            logger.debug(f"selected non usb sounddevice: {idx} {dev}")
+            return idx
+
+    # Fallback: any available input device
+    for idx, dev in enumerate(devices):
+        if dev["max_input_channels"] > 0:
+            logger.debug(f"selected fallback sounddevice: {idx} {dev}")
             return idx
 
     return None
