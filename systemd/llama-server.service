@@ -3,10 +3,10 @@ Description=Llama Server (Qwen 2.5 3B SLM)
 After=network.target
 
 [Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/personal-assistant/models
+User=%%DEPLOY_USER%%
+WorkingDirectory=%%BASE_DIR%%/models
 ExecStart=/usr/local/bin/llama-server \
-  -m /home/ubuntu/personal-assistant/models/qwen2.5-3b-instruct-q4_k_m.gguf \
+  -m %%BASE_DIR%%/models/qwen2.5-3b-instruct-q4_k_m.gguf \
   --port 8080 \
   --ctx-size 2048 \
   -fa on \

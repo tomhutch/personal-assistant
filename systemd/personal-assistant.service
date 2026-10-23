@@ -1,0 +1,15 @@
+[Unit]
+Description=Personal Assistant (Standalone Binary)
+After=network.target llama-server.service whisper-server.service
+
+[Service]
+Type=simple
+User=%%DEPLOY_USER%%
+WorkingDirectory=%%BASE_DIR%%
+EnvironmentFile=%%BASE_DIR%%/.env
+ExecStart=%%BASE_DIR%%/personal-assistant
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
