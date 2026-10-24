@@ -21,8 +21,9 @@ class TestHandleVoiceCommand:
             "service": "turn_off",
             "entity_id": "switch.sonoff_s60zbtpg"
         }
-        
-        handle_voice_command(noise_floor=0.001)
+
+        input_device = 0
+        handle_voice_command(input_device, noise_floor=0.001)
         
         mock_fetch_devices.assert_called_once()
         mock_record.assert_called_once()
@@ -40,8 +41,9 @@ class TestHandleVoiceCommand:
         """Scenario: User triggers wake word but records zero audio; workflow aborts safely."""
         mock_fetch_devices.return_value = []
         mock_record.return_value = np.array([], dtype=np.float32)
-        
-        handle_voice_command(noise_floor=0.001)
+
+        input_device = 0
+        handle_voice_command(0, noise_floor=0.001)
         
         mock_transcribe.assert_not_called()
         mock_exec.assert_not_called()

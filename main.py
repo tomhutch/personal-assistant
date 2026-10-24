@@ -2,8 +2,9 @@ import logging
 import signal
 import sys
 import threading
+import sounddevice as sd
 from config import LOG_LEVEL, SAMPLE_RATE
-from audio import RollingAudioBuffer, listen_for_wake_word, find_input_device
+from audio import RollingAudioBuffer, WakeWordManager, find_input_device
 from command_handler import handle_voice_command
 
 # Robust logging configuration supporting both strings and integers for LOG_LEVEL
@@ -34,8 +35,8 @@ def main_loop():
     """Main background ingestion and wake-word listening loop."""
     logger.info("🚀 Starting background audio stream & ring buffer...")
     rolling_buffer = RollingAudioBuffer(duration_seconds=3.0)
-    
-    import sounddevice as sd
+
+    wake_word_pipeline = WakeWordManager()
 
     input_device = find_input_device()
     if input_device is None:
@@ -49,16 +50,15 @@ def main_loop():
         if not shutdown_event.is_set():
             chunk = indata[:, 0].copy()
             rolling_buffer.append(chunk)
-            from audio import push_audio_chunk
-            push_audio_chunk(chunk)
+            wake_word_pipeline.push_audio_chunk(chunk)
 
     with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32', blocksize=1280, callback=audio_callback):
         while not shutdown_event.is_set():
             # Pass shutdown_event here 👇
-            wake_triggered, noise_floor = listen_for_wake_word(rolling_buffer, shutdown_event)
+            wake_triggered, noise_floor = wake_word_pipeline.listen_for_wake_word(rolling_buffer, shutdown_event)
             
             if wake_triggered and not shutdown_event.is_set():
-                handle_voice_command(noise_floor)
+                handle_voice_command(input_device, noise_floor)
                 logger.info("💤 Returning to standby...\n")
                 
     logger.info("🛑 Assistant stopped cleanly.")

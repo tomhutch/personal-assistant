@@ -1,8 +1,13 @@
 import numpy as np
 import pytest
+import threading
 from unittest.mock import patch, MagicMock
-from audio import RollingAudioBuffer, listen_for_wake_word, record_utterance, find_input_device
-from config import SAMPLE_RATE
+from audio import WakeWordManager, RollingAudioBuffer, record_utterance, find_input_device
+from config import SAMPLE_RATE, WAKE_WORD_MODEL
+
+class DummyEvent:
+    def is_set(self):
+        return False
 
 def make_devices(*specs):
     """Builds a fake PortAudio device list from (name, input_ch, output_ch) specs without explicit indices."""
@@ -99,46 +104,43 @@ class TestRollingAudioBuffer:
         assert len(audio_np) == 0
 
 class TestListenForWakeWord:
-    @patch("audio.transcribe_audio")
-    def test_scenario_music_hallucinations_ignored(self, mock_transcribe):
-        """Scenario: Background music triggers volume gate, but Whisper outputs music tags which are filtered out."""
+    @patch("audio.WAKE_WORD_THRESHOLD", 0.5)
+    @patch("audio.Model")
+    def test_scenario_clean_wake_word(self, mock_model_cls):
+        """Scenario: openWakeWord detects score above threshold using an isolated pipeline instance."""
+        mock_model = MagicMock()
+        mock_model.prediction_buffer = {WAKE_WORD_MODEL: [0.95]}
+        mock_model_cls.return_value = mock_model
+
+        pipeline = WakeWordManager()
         buffer = RollingAudioBuffer(duration_seconds=3.0)
-        buffer.append(np.random.normal(0, 0.05, int(SAMPLE_RATE * 2.5)).astype(np.float32))
         
-        mock_transcribe.side_effect = [
-            "[music playing]",
-            "[blank_audio]",
-            "(drumming)",
-            "hey susan, turn off plug one"
-        ]
+        pipeline.push_audio_chunk(np.zeros(1280, dtype=np.float32))
+
+        triggered, noise_floor = pipeline.listen_for_wake_word(buffer, DummyEvent())
         
-        with patch("time.sleep", return_value=None):
-            triggered, noise_floor = listen_for_wake_word(buffer)
-            
         assert triggered is True
         assert isinstance(noise_floor, float)
-        assert mock_transcribe.call_count == 4
+        mock_model.predict.assert_called_once()
 
-    @patch("audio.transcribe_audio")
-    def test_scenario_clean_wake_word(self, mock_transcribe):
-        """Scenario: Clean user voice saying the wake word triggers immediately on first try."""
+    @patch("audio.Model")
+    def test_scenario_queue_timeout_returns_false(self, mock_model_cls):
+        """Scenario: Queue empties without wake word trigger; function returns False cleanly."""
+        mock_model = MagicMock()
+        mock_model.prediction_buffer = {WAKE_WORD_MODEL: [0.01]}
+        mock_model_cls.return_value = mock_model
+
+        pipeline = WakeWordManager()
         buffer = RollingAudioBuffer(duration_seconds=3.0)
-        buffer.append(np.random.normal(0, 0.05, int(SAMPLE_RATE * 2.5)).astype(np.float32))
         
-        mock_transcribe.return_value = "hey susan"
+        triggered, noise_floor = pipeline.listen_for_wake_word(buffer, DummyEvent())
         
-        with patch("time.sleep", return_value=None):
-            triggered, noise_floor = listen_for_wake_word(buffer)
-            
-        assert triggered is True
-        assert mock_transcribe.call_count == 1
+        assert triggered is False
 
 class TestRecordUtterance:
-    @patch("sounddevice.query_devices")
     @patch("sounddevice.InputStream")
-    def test_scenario_continuous_music_noise_resilience(self, mock_input_stream_cls, mock_query):
+    def test_scenario_continuous_music_noise_resilience(self, mock_input_stream_cls):
         """Scenario: Continuous background music keeps audio elevated, but fixed post-speech window terminates cleanly."""
-        mock_query.return_value = make_devices(("PulseAudio", 2, 2))
         mock_stream = MagicMock()
         chunk_samples = int(SAMPLE_RATE * 0.1)  # 100ms chunks
         
@@ -147,7 +149,7 @@ class TestRecordUtterance:
         mock_input_stream_cls.return_value.__enter__.return_value = mock_stream
         
         noise_floor = 0.001
-        audio_result = record_utterance(noise_floor)
+        audio_result = record_utterance(0, noise_floor)
         
         assert isinstance(audio_result, np.ndarray)
         assert len(audio_result) > 0
@@ -156,14 +158,9 @@ class TestRecordUtterance:
             device=0, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
 
-    @patch("sounddevice.query_devices")
     @patch("sounddevice.InputStream")
-    def test_scenario_no_speech_timeout(self, mock_input_stream_cls, mock_query):
+    def test_scenario_no_speech_timeout(self, mock_input_stream_cls):
         """Scenario: User triggers wake word but stays completely silent; recording times out safely."""
-        mock_query.return_value = make_devices(
-            ("PulseAudio", 2, 2),                 # Index 0
-            ("USB Conference Speakerphone", 1, 1), # Index 1
-        )
         mock_stream = MagicMock()
         chunk_samples = int(SAMPLE_RATE * 0.1)
         
@@ -172,20 +169,18 @@ class TestRecordUtterance:
         mock_input_stream_cls.return_value.__enter__.return_value = mock_stream
         
         noise_floor = 0.001
-        audio_result = record_utterance(noise_floor)
+        audio_result = record_utterance(0, noise_floor)
         
         assert isinstance(audio_result, np.ndarray)
         mock_input_stream_cls.assert_called_once_with(
-            device=1, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
+            device=0, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
 
-    @patch("sounddevice.query_devices")
     @patch("sounddevice.InputStream")
-    def test_scenario_no_input_device_aborts(self, mock_input_stream_cls, mock_query):
+    def test_scenario_no_input_device_aborts(self, mock_input_stream_cls):
         """Scenario: No usable input device exists; recording aborts with empty audio and no stream."""
-        mock_query.return_value = make_devices(("Pulse Output", 0, 2))
         
-        audio_result = record_utterance(0.001)
+        audio_result = record_utterance(None, 0.001)
         
         assert isinstance(audio_result, np.ndarray)
         assert len(audio_result) == 0

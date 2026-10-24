@@ -7,7 +7,7 @@ from intent_parser import parse_intent
 
 logger = logging.getLogger(__name__)
 
-def handle_voice_command(noise_floor, shutdown_event=None):
+def handle_voice_command(input_device, noise_floor, shutdown_event=None):
     """
     Orchestrates a single voice command interaction:
     1. Fetches HA devices in parallel with recording utterance.
@@ -23,7 +23,7 @@ def handle_voice_command(noise_floor, shutdown_event=None):
     # Run Home Assistant device fetching in parallel with recording utterance
     with ThreadPoolExecutor(max_workers=1) as executor:
         future_devices = executor.submit(fetch_ha_devices)
-        audio_data = record_utterance(noise_floor)
+        audio_data = record_utterance(input_device, noise_floor)
         controllable_devices = future_devices.result()
 
     if (shutdown_event and shutdown_event.is_set()) or len(audio_data) == 0:
