@@ -133,12 +133,12 @@ make binary PLATFORM=linux/arm64
 ### 2. Deploy to the server
 
 ```bash
-git clone <your-repo-url> /home/ubuntu/personal-assistant
-# copy the built binary into the repo root on the server:
-scp dist/personal-assistant ubuntu@<server>:/home/ubuntu/personal-assistant/
-
 # on the server:
-cd /home/ubuntu/personal-assistant
+cd ~
+git clone https://github.com/tomhutch/personal-assistant.git
+cd personal-assistant
+make binary
+chmod +x ~/personal-assistant/personal-assistant
 sudo bash setup.sh
 ```
 
