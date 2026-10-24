@@ -39,8 +39,20 @@ pip install -r requirements.txt
 ```
 
 ### Install openwakeword
+
+On OSX:
 ```
 pip install openwakeword onnxruntime
+```
+
+On Ubuntu (this requires downloading from source and downloading pretrained model weights):
+```
+.venv/bin/pip install git+https://github.com/dscripka/openWakeWord.git --no-deps
+.venv/bin/pip install onnxruntime scikit-learn scipy tqdm requests sounddevice numpy
+
+.venv/bin/pip install ai-edge-litert speexdsp-ns
+
+.venv/bin/python -c "import openwakeword.utils; openwakeword.utils.download_models()"
 ```
 
 ### Start the Llama Server (Qwen 2.5 3B SLM, port 8080)
