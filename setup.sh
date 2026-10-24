@@ -104,11 +104,12 @@ echo "=== 7. Registering systemd services ==="
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Dynamically substitute BASE_DIR and DEPLOY_USER into templates
+# Dynamically substitute BASE_DIR, DEPLOY_USER, and QWEN_MODEL into templates
 for service_file in systemd/*.service; do
     filename=$(basename "$service_file")
     sed -e "s|%%BASE_DIR%%|${BASE_DIR}|g" \
         -e "s|%%DEPLOY_USER%%|${DEPLOY_USER}|g" \
+        -e "s|%%QWEN_MODEL%%|${QWEN_MODEL}|g" \
         "$service_file" > "$TEMP_DIR/$filename"
 done
 

@@ -1,12 +1,12 @@
 [Unit]
-Description=Llama Server (Qwen 2.5 3B SLM)
+Description=Llama Server (Qwen 2.5 SLM)
 After=network.target
 
 [Service]
 User=%%DEPLOY_USER%%
 WorkingDirectory=%%BASE_DIR%%/models
 ExecStart=/usr/local/bin/llama-server \
-  -m %%BASE_DIR%%/models/qwen2.5-3b-instruct-q4_k_m.gguf \
+  -m %%BASE_DIR%%/models/%%QWEN_MODEL%% \
   --port 8080 \
   --ctx-size 2048 \
   -fa on \

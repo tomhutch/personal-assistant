@@ -1,3 +1,9 @@
+# Load .env file if it exists
+ifneq (,$(wildcard .env))
+    include .env
+    export
+endif
+
 .PHONY: test run debug binary help
 
 help:
