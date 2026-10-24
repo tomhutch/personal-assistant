@@ -24,12 +24,16 @@ brew install python@3.12
 
 Ubuntu / Debian:
 ```
-sudo apt install python3.12 python3.12-venv
+sudo apt update
+sudo apt install software-properties-common -y
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+sudo apt install python3.12 python3.12-venv python3.12-dev -y
 ```
 
 ### Set Up Virtual Environment
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```

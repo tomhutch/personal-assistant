@@ -3,6 +3,7 @@
 # setup.sh - Master installation script for the Personal Assistant.
 #
 # Deploys the full local AI stack dynamically on this machine:
+#   0. Stopping existing services (if running)
 #   1. System dependencies (build tools, PortAudio/ALSA runtime libs)
 #   2. Qwen 2.5 1.5B GGUF model download
 #   3. llama.cpp build -> /usr/local/bin/llama-server (parallel 1 for safety)
@@ -36,6 +37,10 @@ if [ ! -f main.py ] || [ ! -d systemd ]; then
 fi
 
 cd "$BASE_DIR"
+
+# --- Stop existing services to prevent file locks and stale processes ---
+echo "=== 0. Stopping existing services (if running) ==="
+sudo systemctl stop llama-server whisper-server personal-assistant 2>/dev/null || true
 
 echo "=== 1. Installing system dependencies ==="
 sudo apt update
@@ -109,9 +114,8 @@ done
 
 sudo cp "$TEMP_DIR"/*.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now llama-server
-sudo systemctl enable --now whisper-server
-sudo systemctl enable --now personal-assistant
+sudo systemctl enable llama-server whisper-server personal-assistant
+sudo systemctl restart llama-server whisper-server personal-assistant
 
 echo "=== Deployment complete! ==="
 echo "Check status:  systemctl status personal-assistant llama-server whisper-server"
