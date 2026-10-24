@@ -4,7 +4,7 @@
 #
 # Deploys the full local AI stack dynamically on this machine:
 #   1. System dependencies (build tools, PortAudio/ALSA runtime libs)
-#   2. Qwen 2.5 3B GGUF model download
+#   2. Qwen 2.5 1.5B GGUF model download
 #   3. llama.cpp build -> /usr/local/bin/llama-server (parallel 1 for safety)
 #   4. whisper.cpp build + base.en model download (parallel 1 for safety)
 #   5. Standalone app binary check & auto-permissions fix
@@ -20,8 +20,8 @@ BASE_DIR="${BASE_DIR:-$SCRIPT_DIR}"
 APP_BIN="personal-assistant"
 LLAMA_SERVER_BIN="/usr/local/bin/llama-server"
 
-QWEN_MODEL="qwen2.5-3b-instruct-q4_k_m.gguf"
-QWEN_URL="https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/${QWEN_MODEL}"
+QWEN_MODEL="qwen2.5-1.5b-instruct-q4_k_m.gguf"
+QWEN_URL="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/${QWEN_MODEL}"
 WHISPER_MODEL="base.en"
 
 # --- Sanity checks -------------------------------------------------------------
@@ -44,7 +44,7 @@ sudo apt install -y libportaudio2
 sudo apt install -y libasound2 2>/dev/null || sudo apt install -y libasound2t64
 sudo usermod -aG audio "$DEPLOY_USER"
 
-echo "=== 2. Downloading Qwen 2.5 3B model ==="
+echo "=== 2. Downloading Qwen 2.5 1.5B model ==="
 mkdir -p models
 if [ ! -f "models/${QWEN_MODEL}" ]; then
     echo "Downloading ${QWEN_MODEL}..."
