@@ -50,8 +50,8 @@ def get_audio_rms(block):
 
 def find_input_device():
     """
-    Finds a usable audio input device by index, avoiding raw ALSA hardware 
-    paths (hw:) which can cause sample rate or resource lock errors.
+    Finds a usable audio input device index by scanning PortAudio devices,
+    strictly avoiding raw hardware, loopbacks, and speaker monitor devices.
     """
     try:
         devices = sd.query_devices()
@@ -60,26 +60,30 @@ def find_input_device():
         logger.error("Failed to query PortAudio devices", exc_info=True)
         return None
 
-    # Priority 1: USB input devices managed by the sound server (excluding raw 'hw:')
-    for idx, dev in enumerate(devices):
-        if (dev["max_input_channels"] > 0 
-            and "usb" in dev["name"].lower() 
-            and "hw:" not in dev["name"]):
-            logger.debug(f"selected usb sounddevice: {idx} {dev}")
+    input_devices = [
+        (global_idx, dev) for global_idx, dev in enumerate(devices)
+        if dev["max_input_channels"] > 0
+    ]
+
+    # Priority 1: Non-hardware USB input devices (excluding monitors and loopbacks)
+    for idx, dev in input_devices:
+        name = dev["name"].lower()
+        if (
+            "usb" in name 
+            and "hw:" not in name 
+            and "loopback" not in name 
+            and ".monitor" not in name
+        ):
             return idx
 
-    # Priority 2: Any input device that is not a loopback and not a raw 'hw:' device
-    for idx, dev in enumerate(devices):
-        if (dev["max_input_channels"] > 0 
-            and "loopback" not in dev["name"].lower() 
-            and "hw:" not in dev["name"]):
-            logger.debug(f"selected non usb sounddevice: {idx} {dev}")
-            return idx
-
-    # Fallback: any available input device
-    for idx, dev in enumerate(devices):
-        if dev["max_input_channels"] > 0:
-            logger.debug(f"selected fallback sounddevice: {idx} {dev}")
+    # Priority 2: Any non-loopback, non-monitor, non-hardware input device
+    for idx, dev in input_devices:
+        name = dev["name"].lower()
+        if (
+            "hw:" not in name 
+            and "loopback" not in name 
+            and ".monitor" not in name
+        ):
             return idx
 
     return None
@@ -120,6 +124,7 @@ def listen_for_wake_word(rolling_buffer):
             noise_floor = max(noise_floor, 0.0002)
 
         relative_threshold = max(noise_floor * WAKE_WORD_MULTIPLIER, 0.0015)
+        logger.debug("Live RMS: %.5f | Threshold: %.5f", rms, relative_threshold)
         
         if rms < relative_threshold:
             time.sleep(0.15)

@@ -5,7 +5,7 @@ from audio import RollingAudioBuffer, listen_for_wake_word, record_utterance, fi
 from config import SAMPLE_RATE
 
 def make_devices(*specs):
-    """Builds a fake PortAudio device list from (name, input_ch, output_ch) specs."""
+    """Builds a fake PortAudio device list from (name, input_ch, output_ch) specs without explicit indices."""
     return [
         {"name": name, "max_input_channels": inputs, "max_output_channels": outputs}
         for name, inputs, outputs in specs
@@ -16,9 +16,18 @@ class TestFindInputDevice:
     def test_prefers_usb_input_device(self, mock_query):
         """Scenario: A USB input device is chosen even when other inputs exist first."""
         mock_query.return_value = make_devices(
-            ("PulseAudio", 2, 2),
-            ("USB Conference Speakerphone", 1, 1),
-            ("Pulse Output", 0, 2),
+            ("PulseAudio", 2, 2),                 # Index 0
+            ("USB Conference Speakerphone", 1, 1), # Index 1 (USB wins)
+            ("Pulse Output", 0, 2),                 # Index 2
+        )
+        assert find_input_device() == 1
+
+    @patch("sounddevice.query_devices")
+    def test_skips_monitor_devices(self, mock_query):
+        """Scenario: A .monitor device with input channels is skipped in favor of a true USB input."""
+        mock_query.return_value = make_devices(
+            ("alsa_output.usb-ANKER.monitor", 2, 0),        # Index 0 (Skipped: .monitor)
+            ("alsa_input.usb-ANKER.analog-stereo", 2, 0), # Index 1 (Wins)
         )
         assert find_input_device() == 1
 
@@ -26,8 +35,8 @@ class TestFindInputDevice:
     def test_usb_without_inputs_is_skipped(self, mock_query):
         """Scenario: A USB device with no input channels is not selected; fallback picks the real input."""
         mock_query.return_value = make_devices(
-            ("USB Sound Card (out only)", 0, 2),
-            ("PulseAudio", 2, 2),
+            ("USB Sound Card (out only)", 0, 2), # Index 0 (Skipped: 0 inputs)
+            ("PulseAudio", 2, 2),                 # Index 1 (Wins)
         )
         assert find_input_device() == 1
 
@@ -35,8 +44,8 @@ class TestFindInputDevice:
     def test_fallback_skips_loopback_devices(self, mock_query):
         """Scenario: With no USB input, the first non-loopback input device wins."""
         mock_query.return_value = make_devices(
-            ("PulseAudio", 2, 2),
-            ("Loopback 1", 2, 0),
+            ("PulseAudio", 2, 2), # Index 0 (Wins)
+            ("Loopback 1", 2, 0), # Index 1 (Skipped: loopback)
         )
         assert find_input_device() == 0
 
@@ -96,7 +105,6 @@ class TestListenForWakeWord:
         buffer = RollingAudioBuffer(duration_seconds=3.0)
         buffer.append(np.random.normal(0, 0.05, int(SAMPLE_RATE * 2.5)).astype(np.float32))
         
-        # Whisper returns music tags first, then valid wake word
         mock_transcribe.side_effect = [
             "[music playing]",
             "[blank_audio]",
@@ -134,7 +142,6 @@ class TestRecordUtterance:
         mock_stream = MagicMock()
         chunk_samples = int(SAMPLE_RATE * 0.1)  # 100ms chunks
         
-        # Simulate persistent loud music chunks (RMS > speech threshold)
         music_chunk = np.full((chunk_samples, 1), 0.015, dtype=np.float32)
         mock_stream.read.side_effect = [(music_chunk, False) for _ in range(60)]
         mock_input_stream_cls.return_value.__enter__.return_value = mock_stream
@@ -144,9 +151,7 @@ class TestRecordUtterance:
         
         assert isinstance(audio_result, np.ndarray)
         assert len(audio_result) > 0
-        # Ensures it didn't hang to max duration (10s), but cut off early via post-speech window
         assert len(audio_result) <= int(SAMPLE_RATE * 6.0)
-        # Stream must be opened explicitly on the discovered device, never the implicit -1 default
         mock_input_stream_cls.assert_called_once_with(
             device=0, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
@@ -156,13 +161,12 @@ class TestRecordUtterance:
     def test_scenario_no_speech_timeout(self, mock_input_stream_cls, mock_query):
         """Scenario: User triggers wake word but stays completely silent; recording times out safely."""
         mock_query.return_value = make_devices(
-            ("PulseAudio", 2, 2),
-            ("USB Conference Speakerphone", 1, 1),
+            ("PulseAudio", 2, 2),                 # Index 0
+            ("USB Conference Speakerphone", 1, 1), # Index 1
         )
         mock_stream = MagicMock()
         chunk_samples = int(SAMPLE_RATE * 0.1)
         
-        # Simulate complete silence (RMS below threshold)
         silent_chunk = np.zeros((chunk_samples, 1), dtype=np.float32)
         mock_stream.read.side_effect = [(silent_chunk, False) for _ in range(40)]
         mock_input_stream_cls.return_value.__enter__.return_value = mock_stream
@@ -171,7 +175,6 @@ class TestRecordUtterance:
         audio_result = record_utterance(noise_floor)
         
         assert isinstance(audio_result, np.ndarray)
-        # Recording should have opened on the preferred USB input device
         mock_input_stream_cls.assert_called_once_with(
             device=1, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
