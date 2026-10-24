@@ -29,7 +29,8 @@ def fetch_ha_devices():
                     "state": state.get("state")
                 })
                 
-        logger.info("➜ Discovered %d controllable device(s).", len(controllable))
+        device_summary = [f"{d['name']} ({d['entity_id']}): {d['state']}" for d in controllable]
+        logger.debug("➜ Discovered %d controllable device(s): %s", len(controllable), device_summary)
         return controllable
         
     except requests.RequestException as e:

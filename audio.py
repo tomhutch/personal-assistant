@@ -51,7 +51,7 @@ class WakeWordManager:
             shutdown_event = DummyEvent()
 
         model = self.get_wakeword_model()
-        logger.info("💤 Listening for wake word ('%s') [openWakeWord Active]...", WAKE_WORD_MODEL)
+        logger.debug("💤 Listening for wake word ('%s') [openWakeWord Active]...", WAKE_WORD_MODEL)
         
         while not shutdown_event.is_set():
             try:
@@ -103,7 +103,7 @@ def find_input_device():
     return None
 
 def record_utterance(input_device, noise_floor):
-    logger.info("🎤 Command mode active. Speak your command...")
+    logger.debug("🎤 Command mode active. Speak your command...")
     speech_threshold = max(noise_floor * COMMAND_SPEECH_MULTIPLIER, 0.003)
     chunks = []
     chunk_duration = 0.1

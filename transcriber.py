@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 def transcribe_audio(audio_np: np.ndarray, prompt: str = "") -> str:
     """Sends audio numpy array as an in-memory WAV file to Whisper with an optional vocabulary prompt."""
-    logger.info("🔄 Transcribing audio via Whisper...")
+    logger.debug("🔄 Transcribing audio via Whisper...")
     
     if len(audio_np) == 0:
         return ""

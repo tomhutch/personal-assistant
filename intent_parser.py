@@ -10,7 +10,7 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict:
     Sends the transcript and available devices to the local Qwen SLM 
     to parse into a Home Assistant domain, service, and entity_id.
     """
-    logger.info("⚡ Parsing intent via Qwen 3B...")
+    logger.debug("⚡ Parsing intent via Qwen 3B...")
     
     # Format the device catalog for the SLM context
     devices_json = json.dumps(controllable_devices, indent=2)

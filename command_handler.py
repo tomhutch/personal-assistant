@@ -18,7 +18,7 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None):
     if shutdown_event and shutdown_event.is_set():
         return
 
-    logger.info("🎤 Command mode active. Initializing parallel tasks...")
+    logger.debug("🎤 Command mode active. Initializing parallel tasks...")
     
     # Run Home Assistant device fetching in parallel with recording utterance
     with ThreadPoolExecutor(max_workers=1) as executor:
@@ -37,15 +37,15 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None):
         f"Devices: {', '.join(device_names)}."
     )
 
-    logger.info("🔄 Transcribing command via Whisper (with lean context prompt)...")
+    logger.debug("🔄 Transcribing command via Whisper (with lean context prompt)...")
     transcript = transcribe_audio(audio_data, prompt=prompt_context)
-    logger.info("➜ Transcript: '%s'", transcript)
+    logger.debug("➜ Transcript: '%s'", transcript)
 
     if (shutdown_event and shutdown_event.is_set()) or not transcript or "[blank_audio]" in transcript.lower():
         logger.info("⚠️ Empty transcript or shutdown requested. Returning to standby.")
         return
 
-    logger.info("🧠 Parsing intent with Qwen SLM...")
+    logger.debug("🧠 Parsing intent with Qwen SLM...")
     intent = parse_intent(transcript, controllable_devices)
     
     if shutdown_event and shutdown_event.is_set():

@@ -42,7 +42,7 @@ def main_loop():
     if input_device is None:
         logger.error("❌ No usable audio input device found. Connect a microphone and restart.")
         sys.exit(1)
-    logger.info("🎧 Using input device %d: %s", input_device, sd.query_devices(input_device)["name"])
+    logger.info("🎤 Using input device %d: %s", input_device, sd.query_devices(input_device)["name"])
 
     def audio_callback(indata, frames, time_info, status):
         if status:
@@ -59,7 +59,7 @@ def main_loop():
             
             if wake_triggered and not shutdown_event.is_set():
                 handle_voice_command(input_device, noise_floor)
-                logger.info("💤 Returning to standby...\n")
+                logger.debug("💤 Returning to standby...\n")
                 
     logger.info("🛑 Assistant stopped cleanly.")
 
