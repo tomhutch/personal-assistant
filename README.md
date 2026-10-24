@@ -35,7 +35,7 @@ sudo apt install python3.12 python3.12-venv python3.12-dev -y
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+.venv/bin/pip install -r requirements.txt
 ```
 
 ### Install openwakeword
@@ -45,13 +45,9 @@ On OSX:
 pip install openwakeword onnxruntime
 ```
 
-On Ubuntu (this requires downloading from source and downloading pretrained model weights):
+On Ubuntu this requires downloading from source and downloading pretrained model weights:
 ```
 .venv/bin/pip install git+https://github.com/dscripka/openWakeWord.git --no-deps
-.venv/bin/pip install onnxruntime scikit-learn scipy tqdm requests sounddevice numpy
-
-.venv/bin/pip install ai-edge-litert speexdsp-ns
-
 .venv/bin/python -c "import openwakeword.utils; openwakeword.utils.download_models()"
 ```
 

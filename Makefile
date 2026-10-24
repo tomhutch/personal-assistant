@@ -30,3 +30,4 @@ PLATFORM ?= linux/amd64
 
 binary:
 	docker build --platform $(PLATFORM) -f Dockerfile.builder -o ./dist .
+	chmod +x ./dist/personal-assistant

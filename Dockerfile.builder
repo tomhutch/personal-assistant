@@ -1,21 +1,9 @@
-# Multi-stage builder for the Personal Assistant standalone binary.
-#
-# The target Ubuntu server needs no Python, pip, or venv - PyInstaller bundles
-# the interpreter and all app dependencies into a single executable.
-#
-# Build from the repo root (Docker Desktop running):
-#   make binary
-#   # or, explicitly:
-#   docker build --platform linux/amd64 -f Dockerfile.builder -o ./dist .
-#
-# For an ARM64 server (e.g. AWS Graviton), use --platform linux/arm64 instead.
-# Output: ./dist/personal-assistant
-
 # --- Stage 1: build the executable ---
-FROM python:3.13-slim AS builder
+FROM python:3.12-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -24,14 +12,17 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir pyinstaller -r requirements.txt
 
-# Copy the application source (build artifacts and secrets excluded by .dockerignore)
+# Install openWakeWord from GitHub with --no-deps to bypass the legacy tflite-runtime check
+RUN pip install --no-cache-dir --no-deps "git+https://github.com/dscripka/openWakeWord.git@v0.6.0"
+
+# Pre-download openWakeWord model weights inside the container
+RUN python -c "import openwakeword.utils; openwakeword.utils.download_models()"
+
+# Copy the application source
 COPY . .
 
-# Bundle into a single self-contained executable.
-# Note: on Linux, 'sounddevice' resolves to the pure-Python wheel, which loads
-# the system libportaudio at runtime - the server must have libportaudio2 and
-# ALSA installed (setup.sh handles this).
-RUN pyinstaller --onefile --name personal-assistant main.py
+# Bundle into a single executable, collecting all assets
+RUN pyinstaller --onefile --name personal-assistant --collect-all openwakeword main.py
 
 # --- Stage 2: export artifact ---
 FROM scratch AS export

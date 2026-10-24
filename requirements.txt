@@ -1,10 +1,20 @@
-certifi==2026.10.18
-cffi==2.1.1
-charset-normalizer==3.5.2
-idna==3.20
-numpy==2.5.4
-pycparser==3.11
-requests==2.34.2
-scipy==1.18.1
-sounddevice==0.5.6
-urllib3==2.8.0
+# Runtimes & Noise Suppression Backends
+ai-edge-litert==2.3.0
+speexdsp-ns==0.1.2; platform_system == "Linux"
+onnxruntime==1.17.1
+
+# Core Scientific & Audio Libraries
+numpy==1.26.4
+scipy==1.12.0
+scikit-learn==1.4.1.post1
+sounddevice==0.4.6
+
+# Supporting Utilities & Networking
+requests==2.31.0
+tqdm==4.66.2
+certifi==2024.2.2
+charset-normalizer==3.3.2
+idna==3.6
+urllib3==2.2.1
+cffi==1.16.0
+pycparser==2.21
