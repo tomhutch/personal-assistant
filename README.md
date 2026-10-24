@@ -138,7 +138,7 @@ cd ~
 git clone https://github.com/tomhutch/personal-assistant.git
 cd personal-assistant
 make binary
-chmod +x ~/personal-assistant/personal-assistant
+chmod +x ~/personal-assistant/bin/personal-assistant
 sudo bash setup.sh
 ```
 

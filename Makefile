@@ -22,6 +22,10 @@ debug:
 test:
 	PYTHONPATH=. python -m pytest -v
 
+# Ensure the local bin directory exists
+bin:
+	mkdir -p bin
+
 # Requires Docker. Output: dist/personal-assistant - copy it to the server's
 # repo root before running setup.sh there (see README, "Deploying on Ubuntu").
 # The binary is platform-specific; for an ARM64 server use:
@@ -29,5 +33,9 @@ test:
 PLATFORM ?= linux/amd64
 
 binary:
-	docker build --platform $(PLATFORM) -f Dockerfile.builder -o ./dist .
+	docker build --platform $(PLATFORM) -f Dockerfile.builder -o ./bin .
+
+# Build, copy to service path, and restart systemd
+deploy: binary
 	chmod +x ./dist/personal-assistant
+	systemctl --user restart personal-assistant
