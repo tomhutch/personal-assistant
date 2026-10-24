@@ -1,7 +1,7 @@
 import logging
 import json
 import requests
-from config import SLM_URL
+from config import SLM_URL, SLM_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict:
     }
     
     try:
-        response = requests.post(SLM_URL, json=payload, timeout=5.0)
+        response = requests.post(SLM_URL, json=payload, timeout=SLM_TIMEOUT_SECONDS)
         if response.status_code != 200:
             logger.error("❌ Qwen SLM returned error status %d: %s", response.status_code, response.text)
             return {}
