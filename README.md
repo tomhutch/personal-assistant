@@ -15,11 +15,28 @@ brew install cmake
 sudo apt update && sudo apt install -y cmake build-essential git curl
 ```
 
+### Install Python 3.12 (required for openwakeword)
+
+macOS (via Homebrew):
+```
+brew install python@3.12
+```
+
+Ubuntu / Debian:
+```
+sudo apt install python3.12 python3.12-venv
+```
+
 ### Set Up Virtual Environment
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+### Install openwakeword
+```
+pip install openwakeword onnxruntime
 ```
 
 ### Start the Llama Server (Qwen 2.5 3B SLM, port 8080)

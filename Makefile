@@ -11,7 +11,7 @@ run:
 	PYTHONPATH=. python main.py
 
 debug:
-	LOG_LEVEL=DEBUG PYTHONPATH=. python main.py
+	LOG_LEVEL=DEBUG PYTHONUNBUFFERED=1 PYTHONPATH=. .venv/bin/python -u main.py
 
 test:
 	PYTHONPATH=. python -m pytest -v

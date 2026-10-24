@@ -25,7 +25,6 @@ def signal_handler(sig, frame):
     """Handles SIGINT (Ctrl+C) and SIGTERM gracefully."""
     logger.info("🛑 Termination signal received. Shutting down gracefully...")
     shutdown_event.set()
-    sys.exit(0)
 
 # Register signal handlers
 signal.signal(signal.SIGINT, signal_handler)
@@ -41,8 +40,6 @@ def main_loop():
     input_device = find_input_device()
     if input_device is None:
         logger.error("❌ No usable audio input device found. Connect a microphone and restart.")
-        for idx, dev in enumerate(sd.query_devices()):
-            logger.error("  device %d: %s (inputs=%d, outputs=%d)", idx, dev["name"], dev["max_input_channels"], dev["max_output_channels"])
         sys.exit(1)
     logger.info("🎧 Using input device %d: %s", input_device, sd.query_devices(input_device)["name"])
 
@@ -50,15 +47,21 @@ def main_loop():
         if status:
             logger.debug("Audio stream status: %s", status)
         if not shutdown_event.is_set():
-            rolling_buffer.append(indata[:, 0].copy())
+            chunk = indata[:, 0].copy()
+            rolling_buffer.append(chunk)
+            from audio import push_audio_chunk
+            push_audio_chunk(chunk)
 
-    with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32', callback=audio_callback):
+    with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32', blocksize=1280, callback=audio_callback):
         while not shutdown_event.is_set():
-            wake_triggered, noise_floor = listen_for_wake_word(rolling_buffer)
+            # Pass shutdown_event here 👇
+            wake_triggered, noise_floor = listen_for_wake_word(rolling_buffer, shutdown_event)
             
             if wake_triggered and not shutdown_event.is_set():
                 handle_voice_command(noise_floor)
                 logger.info("💤 Returning to standby...\n")
+                
+    logger.info("🛑 Assistant stopped cleanly.")
 
 if __name__ == "__main__":
     try:
