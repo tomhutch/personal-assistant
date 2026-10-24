@@ -130,16 +130,13 @@ build it for the server's architecture. For an ARM64 server (e.g. AWS Graviton):
 make binary PLATFORM=linux/arm64
 ```
 
-### 2. Deploy to the server
+### 2. Deploy on Linux server
 
 ```bash
-# on the server:
 cd ~
 git clone https://github.com/tomhutch/personal-assistant.git
 cd personal-assistant
-make binary
-chmod +x ~/personal-assistant/bin/personal-assistant
-sudo bash setup.sh
+make deploy
 ```
 
 `setup.sh` installs system dependencies (build tools, PortAudio/ALSA runtime libs),

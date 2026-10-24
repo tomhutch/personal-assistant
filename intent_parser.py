@@ -40,7 +40,7 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict:
         response = requests.post(SLM_URL, json=payload, timeout=SLM_TIMEOUT_SECONDS)
         latency_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
-            "SLM request metrics",
+            f"SLM request completed with status {response.status_code} in {latency_ms}ms",
             extra={"metric": "slm_latency", "latency_ms": round(latency_ms, 2), "status_code": response.status_code}
         )
 
