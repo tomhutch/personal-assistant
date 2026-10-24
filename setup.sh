@@ -10,7 +10,7 @@
 #   4. whisper.cpp build + base.en model download (parallel 1 for safety)
 #   5. Standalone app binary check & auto-permissions fix
 #   6. Environment file setup (.env)
-#   7. Dynamic systemd service registration (llama-server, whisper-server, personal-assistant)
+#   7. Dynamic systemd service registration (system-wide for servers, user-space for assistant)
 
 set -euo pipefail
 
@@ -40,7 +40,8 @@ cd "$BASE_DIR"
 
 # --- Stop existing services to prevent file locks and stale processes ---
 echo "=== 0. Stopping existing services (if running) ==="
-sudo systemctl stop llama-server whisper-server personal-assistant 2>/dev/null || true
+sudo systemctl stop llama-server whisper-server 2>/dev/null || true
+systemctl --user stop personal-assistant 2>/dev/null || true
 
 echo "=== 1. Installing system dependencies ==="
 sudo apt update
@@ -48,6 +49,10 @@ sudo apt install -y cmake build-essential git curl
 sudo apt install -y libportaudio2
 sudo apt install -y libasound2 2>/dev/null || sudo apt install -y libasound2t64
 sudo usermod -aG audio "$DEPLOY_USER"
+
+# Enable user lingering so user services run persistently even when logged out
+echo "Enabling systemd linger for user: $DEPLOY_USER"
+sudo loginctl enable-linger "$DEPLOY_USER"
 
 echo "=== 2. Downloading Qwen 2.5 1.5B model ==="
 mkdir -p models
@@ -104,7 +109,10 @@ echo "=== 7. Registering systemd services ==="
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Dynamically substitute BASE_DIR, DEPLOY_USER, and QWEN_MODEL into templates
+# Prepare user service directory
+mkdir -p ~/.config/systemd/user/
+
+# Dynamically substitute BASE_DIR and QWEN_MODEL into templates
 for service_file in systemd/*.service; do
     filename=$(basename "$service_file")
     sed -e "s|%%BASE_DIR%%|${BASE_DIR}|g" \
@@ -113,11 +121,19 @@ for service_file in systemd/*.service; do
         "$service_file" > "$TEMP_DIR/$filename"
 done
 
-sudo cp "$TEMP_DIR"/*.service /etc/systemd/system/
+# Install backend servers globally (system-level)
+sudo cp "$TEMP_DIR/llama-server.service" "$TEMP_DIR/whisper-server.service" /etc/systemd/system/ 2>/dev/null || true
 sudo systemctl daemon-reload
-sudo systemctl enable llama-server whisper-server personal-assistant
-sudo systemctl restart llama-server whisper-server personal-assistant
+sudo systemctl enable llama-server whisper-server
+sudo systemctl restart llama-server whisper-server
+
+# Install personal assistant as a user service
+cp "$TEMP_DIR/personal-assistant.service" ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable personal-assistant.service
+systemctl --user restart personal-assistant.service
 
 echo "=== Deployment complete! ==="
-echo "Check status:  systemctl status personal-assistant llama-server whisper-server"
-echo "Check logs:    sudo journalctl -u personal-assistant -f"
+echo "Check server status:       sudo systemctl status llama-server whisper-server"
+echo "Check assistant status:    systemctl --user status personal-assistant"
+echo "Check assistant logs:      journalctl --user -u personal-assistant -f"
