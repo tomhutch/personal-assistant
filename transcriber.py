@@ -3,6 +3,7 @@ import requests
 import numpy as np
 import io
 import wave
+import time
 from config import SAMPLE_RATE, WHISPER_URL
 
 logger = logging.getLogger(__name__)
@@ -30,21 +31,32 @@ def transcribe_audio(audio_np: np.ndarray, prompt: str = "") -> str:
             'file': ('audio.wav', wav_buffer.read(), 'audio/wav')
         }
         
-        # Whisper.cpp and API endpoints accept an optional 'prompt' form field
         data = {}
         if prompt:
             data['prompt'] = prompt
 
+        # ⏱️ Measure request latency
+        start_time = time.perf_counter()
         response = requests.post(
             WHISPER_URL,
             files=files,
             data=data,
             timeout=5.0
         )
+        latency_ms = (time.perf_counter() - start_time) * 1000
         
         if response.status_code != 200:
-            logger.error("❌ Whisper API returned error status %d: %s", response.status_code, response.text)
+            logger.error(
+                "❌ Whisper API returned error status %d (took %.2f ms): %s", 
+                response.status_code, latency_ms, response.text
+            )
             return ""
+            
+        logger.info(
+            "🎤 Whisper transcription completed in %.2f ms", 
+            latency_ms,
+            extra={"metric": "whisper_latency", "latency_ms": round(latency_ms, 2), "status_code": response.status_code}
+        )
             
         res_json = response.json()
         text = res_json.get("text", "") or res_json.get("transcription", "")

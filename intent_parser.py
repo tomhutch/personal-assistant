@@ -1,6 +1,7 @@
 import logging
 import json
 import requests
+import time
 from config import SLM_URL, SLM_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
@@ -10,7 +11,7 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict:
     Sends the transcript and available devices to the local Qwen SLM 
     to parse into a Home Assistant domain, service, and entity_id.
     """
-    logger.debug("⚡ Parsing intent via Qwen 3B...")
+    logger.debug("⚡ Parsing intent via SLM...")
     
     # Format the device catalog for the SLM context
     devices_json = json.dumps(controllable_devices, indent=2)
@@ -35,7 +36,14 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict:
     }
     
     try:
+        start_time = time.perf_counter()
         response = requests.post(SLM_URL, json=payload, timeout=SLM_TIMEOUT_SECONDS)
+        latency_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "SLM request metrics",
+            extra={"metric": "slm_latency", "latency_ms": round(latency_ms, 2), "status_code": response.status_code}
+        )
+
         if response.status_code != 200:
             logger.error("❌ Qwen SLM returned error status %d: %s", response.status_code, response.text)
             return {}
