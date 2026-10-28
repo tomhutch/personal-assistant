@@ -96,11 +96,6 @@ On linux:
 sudo apt-get install libusb-1.0-0 libusb-1.0-0-dev
 ```
 
-On Ubuntu, `setup.sh` installs libusb and configures a udev rule for the BlinkStick
-Nano (VID `20a0`, PID `41e5`) so the assistant can access it without running as root.
-It reloads udev rules and triggers USB add events to apply the rule without a manual
-unplug/replug.
-
 Set `LED_ENABLED=false` if no USB LED device is available.
 
 Manually test different states with:

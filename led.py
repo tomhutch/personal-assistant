@@ -1,3 +1,4 @@
+import math
 import logging
 import sys
 import threading
@@ -31,6 +32,9 @@ COLOR_MAP = {
     "green": (0, 255, 0),
     "red": (255, 0, 0),
 }
+
+LISTENING_CYCLE_SECONDS = 2.0
+LISTENING_FRAME_SECONDS = 0.02
 
 
 class LED:
@@ -101,7 +105,12 @@ class LED:
     with self._state_lock:
       return self._current_state
 
-  def _set_both(self, name: str):
+  def _listening_brightness(self, elapsed: float) -> float:
+    cycle_position = (elapsed % LISTENING_CYCLE_SECONDS) / LISTENING_CYCLE_SECONDS
+    curve = (1 + math.cos(2 * math.pi * cycle_position)) / 2
+    return self.brightness * curve
+
+  def _set_both(self, name: str, brightness=None):
     # Skip hardware calls entirely if LEDs are disabled or no device found
     if not self.enabled or not self.bstick:
       return
@@ -112,9 +121,10 @@ class LED:
       if name == "black":
         r, g, b = 0, 0, 0
       else:
-        r = int(base_rgb[0] * self.brightness)
-        g = int(base_rgb[1] * self.brightness)
-        b = int(base_rgb[2] * self.brightness)
+        brightness = self.brightness if brightness is None else brightness
+        r = int(base_rgb[0] * brightness)
+        g = int(base_rgb[1] * brightness)
+        b = int(base_rgb[2] * brightness)
 
       self.bstick.set_color(channel=0, index=0, red=r, green=g, blue=b)
       self.bstick.set_color(channel=0, index=1, red=r, green=g, blue=b)
@@ -130,8 +140,12 @@ class LED:
         self._sleep(0.1)
 
       elif state == AssistantState.LISTENING:
-        self._set_both("deepskyblue")
-        self._sleep(0.2)
+        cycle_started = time.monotonic()
+        while self._running and self.get_state() == AssistantState.LISTENING:
+          elapsed = time.monotonic() - cycle_started
+          brightness = self._listening_brightness(elapsed)
+          self._set_both("deepskyblue", brightness=brightness)
+          self._sleep(LISTENING_FRAME_SECONDS)
 
       elif state == AssistantState.PROCESSING:
         self._set_both("purple")

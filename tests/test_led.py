@@ -1,7 +1,6 @@
 import sys
 import time
 import unittest
-from enum import Enum
 from unittest.mock import MagicMock, patch
 
 # --- 1. MOCK USB & BLINKSTICK ---
@@ -53,6 +52,15 @@ class TestLEDManager(unittest.TestCase):
 
     led.set_state(AssistantState.PROCESSING)
     self.assertEqual(led.get_state(), AssistantState.PROCESSING)
+
+  def test_listening_brightness_follows_cosine_cycle(self):
+    led = LED(brightness=0.1)
+
+    self.assertAlmostEqual(led._listening_brightness(0.0), 0.1)
+    self.assertAlmostEqual(led._listening_brightness(0.5), 0.05)
+    self.assertAlmostEqual(led._listening_brightness(1.0), 0.0)
+    self.assertAlmostEqual(led._listening_brightness(1.5), 0.05)
+    self.assertAlmostEqual(led._listening_brightness(2.0), 0.1)
 
   def test_hardware_called_on_state_change(self):
     led = LED()
