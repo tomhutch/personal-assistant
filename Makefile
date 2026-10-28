@@ -38,4 +38,5 @@ binary:
 # Build, copy to service path, and restart systemd
 deploy: binary
 	chmod +x ./dist/personal-assistant
+	bash setup.sh
 	systemctl --user restart personal-assistant

@@ -84,6 +84,25 @@ cmake --build whisper.cpp/build --config Release --target whisper-server --paral
   --port 8081 --host 127.0.0.1
 ```
 
+### Setup USB LED
+
+On MacOS:
+```
+brew install libusb
+```
+
+On linux:
+```
+sudo apt-get install libusb-1.0-0 libusb-1.0-0-dev
+```
+
+Set `LED_ENABLED=false` if no USB LED device is available.
+
+Manually test different states with:
+```
+sudo python led_manual_test.py success
+```
+
 ### Test
 
 ```bash

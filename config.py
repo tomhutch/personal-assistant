@@ -25,3 +25,7 @@ SLM_TIMEOUT_SECONDS=10.0
 # Read log level from environment variable, default to INFO if not set
 LOG_LEVEL_STR = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_LEVEL = getattr(logging, LOG_LEVEL_STR, logging.INFO)
+
+# LED Config
+LED_ENABLED = True
+LED_BRIGHTNESS = 0.1
