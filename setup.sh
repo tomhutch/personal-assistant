@@ -49,6 +49,16 @@ sudo apt install -y cmake build-essential git curl
 sudo apt install -y libportaudio2
 sudo apt install -y libasound2 2>/dev/null || sudo apt install -y libasound2t64
 sudo usermod -aG audio "$DEPLOY_USER"
+sudo apt install -y libusb-1.0-0 libusb-1.0-0-dev
+
+echo "Configuring BlinkStick USB access for $DEPLOY_USER"
+sudo groupadd --force plugdev
+sudo usermod -aG plugdev "$DEPLOY_USER"
+printf '%s\n' 'SUBSYSTEM=="usb", ATTR{idVendor}=="20a0", ATTR{idProduct}=="41e5", MODE="0666", GROUP="plugdev"' \
+    | sudo tee /etc/udev/rules.d/85-blinkstick.rules >/dev/null
+sudo udevadm control --reload-rules
+sudo udevadm trigger --action=add --subsystem-match=usb
+echo "BlinkStick udev rule installed and applied to USB devices."
 
 # Enable user lingering so user services run persistently even when logged out
 echo "Enabling systemd linger for user: $DEPLOY_USER"
