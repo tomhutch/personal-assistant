@@ -1,7 +1,11 @@
+import logging
+import sys
 import threading
 import time
 from enum import Enum
 from blinkstick import blinkstick
+
+logger = logging.getLogger(__name__)
 
 # Try loading settings from config, with safe defaults
 try:
@@ -16,7 +20,8 @@ class AssistantState(Enum):
   LISTENING = "listening"
   PROCESSING = "processing"
   SUCCESS = "success"
-  ERROR = "error"
+  FAILURE = "failure"
+  ERROR = "failure"
 
 
 COLOR_MAP = {
@@ -62,14 +67,16 @@ class LED:
       try:
         self.bstick = blinkstick.find_first()
         if not self.bstick:
-          print(
-              "[Warning] No BlinkStick Nano found. Running in mock/headless"
-              " mode."
+          logger.warning(
+              "No BlinkStick Nano visible to %s. Check the USB connection, "
+              "libusb installation, and this process's USB permissions; "
+              "continuing without LED hardware.",
+              sys.executable,
           )
       except Exception as e:
-        print(f"[Warning] Could not initialize BlinkStick USB: {e}")
+        logger.warning("Could not initialize BlinkStick USB: %s", e, exc_info=True)
     else:
-      print("[LED Manager] LEDs are disabled via config.py.")
+      logger.info("LEDs are disabled via config.py.")
 
     self._current_state = AssistantState.PASSIVE
     self._state_lock = threading.Lock()
@@ -112,7 +119,7 @@ class LED:
       self.bstick.set_color(channel=0, index=0, red=r, green=g, blue=b)
       self.bstick.set_color(channel=0, index=1, red=r, green=g, blue=b)
     except Exception as e:
-      print(f"[LED Error] Failed to set color: {e}")
+      logger.critical("CRITICAL LED ERROR: Failed to set color: %s", e, exc_info=True)
 
   def _animation_loop(self):
     while self._running:
@@ -142,9 +149,9 @@ class LED:
           self._sleep(0.15)
         self.set_state(AssistantState.PASSIVE)
 
-      elif state == AssistantState.ERROR:
+      elif state == AssistantState.FAILURE:
         for _ in range(2):
-          if self.get_state() != AssistantState.ERROR:
+          if self.get_state() != AssistantState.FAILURE:
             break
           self._set_both("red")
           self._sleep(0.15)

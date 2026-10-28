@@ -21,6 +21,15 @@ class TestHomeAssistantClient:
         assert len(devices) == 2
         assert devices[0]["entity_id"] == "switch.sonoff_s60zbtpg"
 
+    @patch("requests.get")
+    def test_fetch_unauthorized_logs_and_returns_none(self, mock_get, caplog):
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_get.return_value = mock_response
+
+        assert get_ha_devices() is None
+        assert "Failed to fetch HA states. Status: 401" in caplog.text
+
     @patch("requests.post")
     def test_scenario_execute_command_success(self, mock_post):
         """Scenario: Successfully fires a service call to Home Assistant to turn off a device."""

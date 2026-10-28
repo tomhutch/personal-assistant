@@ -5,7 +5,7 @@ from config import HA_URL, HA_TOKEN
 logger = logging.getLogger(__name__)
 
 def fetch_ha_devices():
-    """Fetches all states from Home Assistant and filters for controllable switches/lights."""
+    """Fetch controllable devices, returning None when the request fails."""
     headers = {
         "Authorization": f"Bearer {HA_TOKEN}",
         "Content-Type": "application/json",
@@ -13,29 +13,34 @@ def fetch_ha_devices():
     
     try:
         response = requests.get(f"{HA_URL}/api/states", headers=headers, timeout=5.0)
-        if response.status_code != 200:
-            logger.error("❌ Failed to fetch HA states. Status: %d", response.status_code)
-            return []
-            
-        states = response.json()
-        controllable = []
-        
-        for state in states:
-            entity_id = state.get("entity_id", "")
-            if entity_id.startswith("switch.") or entity_id.startswith("light."):
-                controllable.append({
-                    "entity_id": entity_id,
-                    "name": state.get("attributes", {}).get("friendly_name", entity_id),
-                    "state": state.get("state")
-                })
-                
-        device_summary = [f"{d['name']} ({d['entity_id']}): {d['state']}" for d in controllable]
-        logger.debug("➜ Discovered %d controllable device(s): %s", len(controllable), device_summary)
-        return controllable
-        
     except requests.RequestException as e:
         logger.error("❌ Error connecting to Home Assistant: %s", e)
-        return []
+        return None
+
+    if response.status_code != 200:
+        logger.error("❌ Failed to fetch HA states. Status: %d", response.status_code)
+        return None
+
+    try:
+        states = response.json()
+    except ValueError as e:
+        logger.error("❌ Home Assistant returned invalid JSON for device states: %s", e)
+        return None
+
+    controllable = []
+
+    for state in states:
+        entity_id = state.get("entity_id", "")
+        if entity_id.startswith("switch.") or entity_id.startswith("light."):
+            controllable.append({
+                "entity_id": entity_id,
+                "name": state.get("attributes", {}).get("friendly_name", entity_id),
+                "state": state.get("state")
+            })
+
+    device_summary = [f"{d['name']} ({d['entity_id']}): {d['state']}" for d in controllable]
+    logger.debug("➜ Discovered %d controllable device(s): %s", len(controllable), device_summary)
+    return controllable
 
 # Alias for backward compatibility if needed
 get_ha_devices = fetch_ha_devices

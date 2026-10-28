@@ -94,6 +94,7 @@ brew install libusb
 On linux:
 ```
 sudo apt-get install libusb-1.0-0 libusb-1.0-0-dev
+sudo blinkstick --add-udev-rule
 ```
 
 Set `LED_ENABLED=false` if no USB LED device is available.

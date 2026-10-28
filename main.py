@@ -6,6 +6,7 @@ import sounddevice as sd
 from config import LOG_LEVEL, SAMPLE_RATE
 from audio import RollingAudioBuffer, WakeWordManager, find_input_device
 from command_handler import handle_voice_command
+from led import LED, AssistantState
 
 # Robust logging configuration supporting both strings and integers for LOG_LEVEL
 if isinstance(LOG_LEVEL, int):
@@ -44,6 +45,8 @@ def main_loop():
         sys.exit(1)
     logger.info("🎤 Using input device %d: %s", input_device, sd.query_devices(input_device)["name"])
 
+    led = LED()
+
     def audio_callback(indata, frames, time_info, status):
         if status:
             logger.debug("Audio stream status: %s", status)
@@ -52,15 +55,24 @@ def main_loop():
             rolling_buffer.append(chunk)
             wake_word_manager.push_audio_chunk(chunk)
 
-    with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32', blocksize=1280, callback=audio_callback):
-        while not shutdown_event.is_set():
-            # Pass shutdown_event here 👇
-            wake_triggered, noise_floor = wake_word_manager.listen_for_wake_word(rolling_buffer, shutdown_event)
-            
-            if wake_triggered and not shutdown_event.is_set():
-                handle_voice_command(input_device, noise_floor)
-                logger.debug("💤 Returning to standby...\n")
-                
+    try:
+        with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32', blocksize=1280, callback=audio_callback):
+            while not shutdown_event.is_set():
+                wake_triggered, noise_floor = wake_word_manager.listen_for_wake_word(rolling_buffer, shutdown_event)
+
+                if wake_triggered and not shutdown_event.is_set():
+                    handle_voice_command(
+                        input_device,
+                        noise_floor,
+                        shutdown_event=shutdown_event,
+                        led=led,
+                    )
+                    logger.debug("💤 Returning to standby...\n")
+
+        led.set_state(AssistantState.PASSIVE)
+    finally:
+        led.close()
+
     logger.info("🛑 Assistant stopped cleanly.")
 
 if __name__ == "__main__":

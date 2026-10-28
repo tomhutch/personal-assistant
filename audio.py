@@ -102,7 +102,7 @@ def find_input_device():
 
     return None
 
-def record_utterance(input_device, noise_floor):
+def record_utterance(input_device, noise_floor, cancel_event=None):
     logger.debug("🎤 Command mode active. Speak your command...")
     speech_threshold = max(noise_floor * COMMAND_SPEECH_MULTIPLIER, 0.003)
     chunks = []
@@ -115,9 +115,14 @@ def record_utterance(input_device, noise_floor):
     if input_device is None:
         logger.error("❌ No usable audio input device found; cannot record utterance.")
         return np.array([], dtype=np.float32)
+    if cancel_event and cancel_event.is_set():
+        return np.array([], dtype=np.float32)
 
     with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32') as stream:
-        while total_duration < COMMAND_MAX_DURATION:
+        while (
+            total_duration < COMMAND_MAX_DURATION
+            and not (cancel_event and cancel_event.is_set())
+        ):
             audio_block, _ = stream.read(chunk_samples)
             block = audio_block[:, 0]
             chunks.append(block)

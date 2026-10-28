@@ -2,7 +2,7 @@ import sys
 import time
 import unittest
 from enum import Enum
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # --- 1. MOCK USB & BLINKSTICK ---
 mock_usb = MagicMock()
@@ -26,11 +26,14 @@ class TestLEDManager(unittest.TestCase):
 
   def setUp(self):
     mock_device.reset_mock()
-    mock_bs_module.find_first.return_value = mock_device
+    self.find_first_patcher = patch("led.blinkstick.find_first", return_value=mock_device)
+    self.find_first_patcher.start()
+    self.addCleanup(self.find_first_patcher.stop)
     # Initialize singleton in instant test mode
     LED(test_mode=True)
 
   def tearDown(self):
+    mock_device.set_color.side_effect = None
     if LED._instance:
       LED._instance.close()
 
@@ -59,14 +62,27 @@ class TestLEDManager(unittest.TestCase):
     time.sleep(0.02)
 
     self.assertTrue(mock_device.set_color.called)
+    red, green, blue = (int(value * led.brightness) for value in (0, 191, 255))
     mock_device.set_color.assert_any_call(
-        channel=0, index=0, name="deepskyblue"
+      channel=0, index=0, red=red, green=green, blue=blue
     )
 
-  def test_error_state_resets_to_passive(self):
+  def test_color_write_failure_is_logged(self):
     led = LED()
-    led.set_state(AssistantState.ERROR)
-    self.assertEqual(led.get_state(), AssistantState.ERROR)
+    led._running = False
+    led._thread.join()
+    mock_device.set_color.side_effect = PermissionError("USB access denied")
+
+    with self.assertLogs("led", level="CRITICAL") as captured:
+      led._set_both("red")
+
+    self.assertIn("CRITICAL LED ERROR: Failed to set color: USB access denied", captured.output[0])
+    mock_device.set_color.side_effect = None
+
+  def test_failure_state_resets_to_passive(self):
+    led = LED()
+    led.set_state(AssistantState.FAILURE)
+    self.assertEqual(led.get_state(), AssistantState.FAILURE)
 
     # Error loop completes instantly in test mode
     time.sleep(0.05)

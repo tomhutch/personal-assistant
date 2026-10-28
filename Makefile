@@ -13,8 +13,10 @@ help:
 	@echo "  make test    - Run the per-function test suite via pytest"
 	@echo "  make binary  - Build the standalone Linux binary via Docker (dist/)"
 
+# Run the voice assistant.
+# Note: sudo is required to access the usb led.
 run:
-	PYTHONPATH=. python main.py
+	sudo PYTHONPATH=. .venv/bin/python main.py
 
 debug:
 	LOG_LEVEL=DEBUG PYTHONUNBUFFERED=1 PYTHONPATH=. .venv/bin/python -u main.py

@@ -1,4 +1,5 @@
 import argparse
+import sys
 import time
 from led import LED, AssistantState
 
@@ -10,7 +11,7 @@ def main():
   parser.add_argument(
       "state",
       type=str.lower,
-      choices=["passive", "listening", "processing", "success", "error"],
+      choices=["passive", "listening", "processing", "success", "failure"],
       help="The target state for the LED indicator.",
   )
   parser.add_argument(
@@ -31,7 +32,7 @@ def main():
       "listening": AssistantState.LISTENING,
       "processing": AssistantState.PROCESSING,
       "success": AssistantState.SUCCESS,
-      "error": AssistantState.ERROR,
+      "failure": AssistantState.FAILURE,
   }
 
   target_state = state_mapping[args.state]
@@ -43,8 +44,10 @@ def main():
 
   if not leds.bstick:
     print(
-        "[Warning] No physical BlinkStick device detected via USB! Check connection."
+        "[Warning] No physical BlinkStick device detected via USB by "
+        f"{sys.executable}. Check USB permissions, libusb, and the connection."
     )
+    leds.close()
     return
 
   brightness_display = (
@@ -53,7 +56,7 @@ def main():
       else "Config Default"
   )
   print(
-      f"✨ Setting state to: [{args.state.upper()}] | Brightness:"
+      f"✨ Setting state to: [{target_state.name}] | Brightness:"
       f" {brightness_display}"
   )
 

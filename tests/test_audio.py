@@ -139,6 +139,25 @@ class TestListenForWakeWord:
 
 class TestRecordUtterance:
     @patch("sounddevice.InputStream")
+    def test_cancel_event_stops_recording_between_reads(self, mock_input_stream_cls):
+        mock_stream = MagicMock()
+        cancel_event = threading.Event()
+        chunk_samples = int(SAMPLE_RATE * 0.1)
+        silent_chunk = np.zeros((chunk_samples, 1), dtype=np.float32)
+
+        def read_and_cancel(samples):
+            cancel_event.set()
+            return silent_chunk, False
+
+        mock_stream.read.side_effect = read_and_cancel
+        mock_input_stream_cls.return_value.__enter__.return_value = mock_stream
+
+        audio_result = record_utterance(0, 0.001, cancel_event)
+
+        assert len(audio_result) == chunk_samples
+        mock_stream.read.assert_called_once_with(chunk_samples)
+
+    @patch("sounddevice.InputStream")
     def test_scenario_continuous_music_noise_resilience(self, mock_input_stream_cls):
         """Scenario: Continuous background music keeps audio elevated, but fixed post-speech window terminates cleanly."""
         mock_stream = MagicMock()
