@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 def parse_intent(transcript: str, controllable_devices: list) -> dict:
     """
-    Sends the transcript and available devices to the local Qwen SLM 
+    Sends the transcript and available devices to SLM 
     to parse into a Home Assistant domain, service, and entity_id.
     """
     logger.debug("⚡ Parsing intent via SLM...")

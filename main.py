@@ -36,7 +36,7 @@ def main_loop():
     logger.info("🚀 Starting background audio stream & ring buffer...")
     rolling_buffer = RollingAudioBuffer(duration_seconds=3.0)
 
-    wake_word_pipeline = WakeWordManager()
+    wake_word_manager = WakeWordManager()
 
     input_device = find_input_device()
     if input_device is None:
@@ -50,12 +50,12 @@ def main_loop():
         if not shutdown_event.is_set():
             chunk = indata[:, 0].copy()
             rolling_buffer.append(chunk)
-            wake_word_pipeline.push_audio_chunk(chunk)
+            wake_word_manager.push_audio_chunk(chunk)
 
     with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32', blocksize=1280, callback=audio_callback):
         while not shutdown_event.is_set():
             # Pass shutdown_event here 👇
-            wake_triggered, noise_floor = wake_word_pipeline.listen_for_wake_word(rolling_buffer, shutdown_event)
+            wake_triggered, noise_floor = wake_word_manager.listen_for_wake_word(rolling_buffer, shutdown_event)
             
             if wake_triggered and not shutdown_event.is_set():
                 handle_voice_command(input_device, noise_floor)
