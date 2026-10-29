@@ -172,15 +172,11 @@ cd personal-assistant
 make deploy
 ```
 
-`setup.sh` installs system dependencies (including Mesa Vulkan support), downloads
-the Qwen 2.5 1.5B GGUF, configures and incrementally rebuilds Vulkan-enabled
-`llama-server` into `/usr/local/bin`, and builds Vulkan-enabled `whisper.cpp`.
-It then verifies the app binary, generates `.env` from `.env.example`, and registers
-and starts the three systemd services. Check Vulkan device discovery in both servers:
-
-```bash
-sudo journalctl -u llama-server -u whisper-server -b --no-pager | grep -iE 'vulkan|offload|gpu'
-```
+`setup.sh` installs system dependencies, downloads the Qwen 2.5 1.5B GGUF,
+configures and incrementally rebuilds CPU-enabled `llama-server` into
+`/usr/local/bin` and CPU-enabled `whisper.cpp`. It then verifies the app binary,
+generates `.env` from `.env.example`, and registers and starts the three systemd
+services.
 
 > After the first run, edit `/home/ubuntu/personal-assistant/.env` and set your
 > `HA_TOKEN`, then `sudo systemctl restart python-app`.
