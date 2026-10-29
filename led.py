@@ -37,6 +37,18 @@ LISTENING_CYCLE_SECONDS = 2.0
 LISTENING_FRAME_SECONDS = 0.02
 
 
+def _configure_libusb_backend():
+  try:
+    import libusb_package
+    from usb.backend import libusb1
+  except ImportError:
+    logger.debug("libusb-package unavailable; using system libusb discovery.")
+    return
+
+  if libusb1.get_backend(find_library=libusb_package.find_library) is None:
+    logger.warning("Could not load the libusb-package backend; using system discovery.")
+
+
 class LED:
   _instance = None
   _lock = threading.Lock()
@@ -69,6 +81,7 @@ class LED:
 
     if self.enabled:
       try:
+        _configure_libusb_backend()
         self.bstick = blinkstick.find_first()
         if not self.bstick:
           logger.warning(

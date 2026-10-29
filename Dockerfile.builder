@@ -23,7 +23,8 @@ COPY . .
 
 # Bundle into a single executable, collecting all assets
 RUN pyinstaller --onefile --name personal-assistant \
-    --collect-all openwakeword --collect-all piper main.py
+    --collect-all openwakeword --collect-all piper \
+    --collect-all libusb_package main.py
 
 # --- Stage 2: export artifact ---
 FROM scratch AS export
