@@ -7,6 +7,7 @@ User=%%DEPLOY_USER%%
 WorkingDirectory=%%BASE_DIR%%/models
 ExecStart=/usr/local/bin/llama-server \
   -m %%BASE_DIR%%/models/%%QWEN_MODEL%% \
+  -ngl 99 \
   --port 8080 \
   --ctx-size 2048 \
   -fa on \

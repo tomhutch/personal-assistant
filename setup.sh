@@ -56,6 +56,7 @@ systemctl --user stop personal-assistant 2>/dev/null || true
 echo "=== 1. Installing system dependencies & hardware rules ==="
 sudo apt update
 sudo apt install -y cmake build-essential git curl
+sudo apt install -y libvulkan-dev mesa-vulkan-drivers vulkan-tools
 sudo apt install -y libportaudio2
 sudo apt install -y libasound2 2>/dev/null || sudo apt install -y libasound2t64
 sudo usermod -aG audio "$DEPLOY_USER"
@@ -95,18 +96,19 @@ else
 fi
 
 echo "=== 4. Building llama.cpp (llama-server) ==="
-if [ ! -x "$LLAMA_SERVER_BIN" ]; then
-    [ -d llama.cpp ] || git clone https://github.com/ggml-org/llama.cpp.git
-    cmake -S llama.cpp -B llama.cpp/build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=ON
-    cmake --build llama.cpp/build --config Release --target llama-server --parallel 1
-    sudo cp llama.cpp/build/bin/llama-server "$LLAMA_SERVER_BIN"
-else
-    echo "llama-server already installed at $LLAMA_SERVER_BIN, skipping."
-fi
+[ -d llama.cpp ] || git clone https://github.com/ggml-org/llama.cpp.git
+cmake -S llama.cpp -B llama.cpp/build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DGGML_NATIVE=ON \
+    -DGGML_VULKAN=ON
+cmake --build llama.cpp/build --config Release --target llama-server --parallel 1
+sudo install -m 755 llama.cpp/build/bin/llama-server "$LLAMA_SERVER_BIN"
 
 echo "=== 5. Building whisper.cpp ==="
 [ -d whisper.cpp ] || git clone https://github.com/ggml-org/whisper.cpp.git
-cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release
+cmake -S whisper.cpp -B whisper.cpp/build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DGGML_VULKAN=ON
 cmake --build whisper.cpp/build --config Release --target whisper-server --parallel 1
 ( cd whisper.cpp && bash ./models/download-ggml-model.sh "$WHISPER_MODEL" )
 
