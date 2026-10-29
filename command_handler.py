@@ -103,7 +103,11 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             led.set_state(AssistantState.PROCESSING)
 
         # Build a lean context prompt: strict action verbs and your actual device names
-        device_names = [d.get("name", "") for d in controllable_devices]
+        device_names = [
+            f"{device.get('name', '')} in {device['area']}"
+            if device.get("area") else device.get("name", "")
+            for device in controllable_devices
+        ]
         prompt_context = (
             f"Turn on. Turn off. "
             f"Devices: {', '.join(device_names)}."

@@ -44,7 +44,11 @@ class TestParseIntent:
             }]
         }
         mock_post.return_value = mock_response
-        devices = [{"entity_id": "light.living_room", "name": "Living Room"}]
+        devices = [{
+            "entity_id": "light.living_room",
+            "name": "Ceiling Light",
+            "area": "Living Room",
+        }]
 
         intent = parse_intent("set the living room light to 45 percent", devices)
 
@@ -53,6 +57,37 @@ class TestParseIntent:
             "service": "turn_on",
             "entity_id": "light.living_room",
             "brightness_pct": 45,
+        }
+        assert '"area": "Living Room"' in mock_post.call_args.kwargs["json"]["messages"][1]["content"]
+
+    @patch("requests.post")
+    def test_group_intent_uses_homeassistant_service_domain(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{
+                "message": {
+                    "content": (
+                        '{"domain":"homeassistant","service":"turn_on",'
+                        '"entity_id":"group.living_room_lights"}'
+                    )
+                }
+            }]
+        }
+        mock_post.return_value = mock_response
+        devices = [{
+            "entity_id": "group.living_room_lights",
+            "name": "Living Room Lights",
+            "area": "Living Room",
+            "members": ["light.ceiling", "light.lamp"],
+        }]
+
+        intent = parse_intent("turn on the living room lights", devices)
+
+        assert intent == {
+            "domain": "homeassistant",
+            "service": "turn_on",
+            "entity_id": "group.living_room_lights",
         }
 
     @patch("requests.post")

@@ -20,9 +20,11 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
         "You are a smart home intent parser. Given a user transcript and a list of available devices, "
         "return only a JSON object with 'domain', 'service', and 'entity_id'. "
         "Use only an exact entity_id from the available devices. Supported services are "
-        "turn_on and turn_off for switches and lights. For a requested light brightness, "
+        "turn_on and turn_off for switches, lights, and groups. For group.* entities, "
+        "use domain 'homeassistant'; otherwise use the entity domain. For a requested light brightness, "
         "use domain 'light', service 'turn_on', and add 'brightness_pct' as a number from 1 to 100. "
         "Do not include brightness_pct for switches or when no brightness was requested. "
+        "Use an available device's area name to disambiguate between similarly named devices. "
         "If no listed device matches or the request is ambiguous, return {}. "
         "Do not include markdown or extra text."
     )
@@ -83,24 +85,25 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
             logger.warning("SLM selected an unknown or missing entity_id: %r", entity_id)
             return {}
 
-        domain, separator, _ = entity_id.partition(".")
+        entity_domain, separator, _ = entity_id.partition(".")
+        service_domain = "homeassistant" if entity_domain == "group" else entity_domain
         service = intent_data.get("service")
-        if not separator or intent_data.get("domain") != domain:
+        if not separator or intent_data.get("domain") != service_domain:
             logger.warning("SLM returned an invalid domain for %s.", entity_id)
             return {}
-        if domain not in {"switch", "light"} or service not in {"turn_on", "turn_off"}:
+        if entity_domain not in {"switch", "light", "group"} or service not in {"turn_on", "turn_off"}:
             logger.warning("SLM returned an unsupported service for %s.", entity_id)
             return {}
 
         validated_intent = {
-            "domain": domain,
+            "domain": service_domain,
             "service": service,
             "entity_id": entity_id,
         }
         if "brightness_pct" in intent_data:
             brightness_pct = intent_data["brightness_pct"]
             if (
-                domain != "light"
+                entity_domain != "light"
                 or service != "turn_on"
                 or isinstance(brightness_pct, bool)
                 or not isinstance(brightness_pct, (int, float))
