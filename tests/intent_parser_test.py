@@ -61,6 +61,29 @@ class TestParseIntent:
         assert '"area": "Living Room"' in mock_post.call_args.kwargs["json"]["messages"][1]["content"]
 
     @patch("requests.post")
+    def test_explicit_transcript_percentage_fills_missing_brightness(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{
+                "message": {
+                    "content": (
+                        '{"domain":"light","service":"turn_on",'
+                        '"entity_id":"light.living_room"}'
+                    )
+                }
+            }]
+        }
+        mock_post.return_value = mock_response
+
+        intent = parse_intent(
+            "set the living room light to 35 percent",
+            [{"entity_id": "light.living_room", "name": "Living Room Light"}],
+        )
+
+        assert intent["brightness_pct"] == 35
+
+    @patch("requests.post")
     def test_group_intent_uses_homeassistant_service_domain(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200

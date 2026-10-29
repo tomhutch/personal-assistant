@@ -1,10 +1,19 @@
 import logging
 import json
+import re
 import requests
 import time
 from config import SLM_URL, SLM_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
+
+def _extract_brightness_pct(transcript: str) -> int | None:
+    match = re.search(r"\b(\d{1,3})\s*(?:%|\bpercent(?:age)?\b)", transcript, re.IGNORECASE)
+    if not match:
+        return None
+
+    brightness_pct = int(match.group(1))
+    return brightness_pct if 1 <= brightness_pct <= 100 else None
 
 def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
     """
@@ -22,8 +31,9 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
         "Use only an exact entity_id from the available devices. Supported services are "
         "turn_on and turn_off for switches, lights, and groups. For group.* entities, "
         "use domain 'homeassistant'; for light.* or switch.* entities, use the matching entity domain. "
-        "For a requested light brightness, "
-        "use domain 'light', service 'turn_on', and add 'brightness_pct' as a number from 1 to 100. "
+        "For a requested light brightness, always use domain 'light', service 'turn_on', "
+        "and include 'brightness_pct' as an integer from 1 to 100. "
+        "Example: 'set the living room light to 35 percent' means brightness_pct 35. "
         "Do not include brightness_pct for switches or when no brightness was requested. "
         "Use an available device's area name to disambiguate between similarly named devices. "
         "If no listed device matches or the request is ambiguous, return {}. "
@@ -108,7 +118,10 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
             "service": service,
             "entity_id": entity_id,
         }
-        if "brightness_pct" in intent_data:
+        brightness_pct = _extract_brightness_pct(transcript)
+        if brightness_pct is not None and entity_domain == "light" and service == "turn_on":
+            validated_intent["brightness_pct"] = brightness_pct
+        elif "brightness_pct" in intent_data:
             brightness_pct = intent_data["brightness_pct"]
             if (
                 entity_domain != "light"

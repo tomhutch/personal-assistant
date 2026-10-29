@@ -140,16 +140,21 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             return
 
         if intent and "domain" in intent and "service" in intent and "entity_id" in intent:
+            brightness_pct = intent.get("brightness_pct")
+            brightness_description = (
+                f" at {brightness_pct}% brightness" if brightness_pct is not None else ""
+            )
             logger.info(
-                "⚡ Executing on Home Assistant: %s -> %s",
+                "⚡ Executing on Home Assistant: %s -> %s%s",
                 intent['service'],
-                intent['entity_id']
+                intent['entity_id'],
+                brightness_description,
             )
             command_succeeded = execute_ha_command(
                 intent['domain'],
                 intent['service'],
                 intent['entity_id'],
-                brightness_pct=intent.get("brightness_pct"),
+                brightness_pct=brightness_pct,
             )
             if led:
                 led.set_state(
