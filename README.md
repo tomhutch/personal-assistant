@@ -53,10 +53,10 @@ On Ubuntu this requires downloading from source and downloading pretrained model
 
 ### Install Piper voice
 
-Piper is installed with `requirements.txt`. Download the default low-quality
-British English voice from the repository root:
+Piper is installed with `requirements.txt`. Download the default medium-quality
+US English voice from the repository root:
 ```bash
-.venv/bin/python -m piper.download_voices en_GB-southern_english_female-low
+.venv/bin/python -m piper.download_voices en_US-norman-medium
 ```
 
 Set `PIPER_VOICE_MODEL` to another downloaded `.onnx` path to use a different

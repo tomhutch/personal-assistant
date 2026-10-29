@@ -24,8 +24,8 @@ LLAMA_SERVER_BIN="/usr/local/bin/llama-server"
 QWEN_MODEL="qwen2.5-1.5b-instruct-q4_k_m.gguf"
 QWEN_URL="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/${QWEN_MODEL}"
 WHISPER_MODEL="base.en"
-PIPER_VOICE="en_GB-southern_english_female-low"
-PIPER_VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/southern_english_female/low/${PIPER_VOICE}"
+PIPER_VOICE="en_US-norman-medium"
+PIPER_VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/norman/medium/${PIPER_VOICE}"
 
 # --- Sanity checks -------------------------------------------------------------
 if [ "$(id -u)" -eq 0 ]; then
