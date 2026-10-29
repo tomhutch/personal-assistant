@@ -140,6 +140,29 @@ class TestHandleVoiceCommand:
         )
 
     @patch("command_handler.execute_ha_command")
+    @patch("command_handler.parse_intent")
+    @patch("command_handler.transcribe_audio")
+    @patch("command_handler.record_utterance")
+    @patch("command_handler.fetch_ha_devices")
+    def test_slm_failure_announces_service_problem(
+        self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse,
+        mock_exec, mock_failure_announcement,
+    ):
+        mock_fetch_devices.return_value = [{"entity_id": "switch.plug_1", "name": "Plug 1"}]
+        mock_record.return_value = np.zeros(16000, dtype=np.float32)
+        mock_transcribe.return_value = "turn on plug 1"
+        mock_parse.return_value = None
+        mock_led = MagicMock()
+
+        handle_voice_command(0, noise_floor=0.001, led=mock_led)
+
+        mock_exec.assert_not_called()
+        mock_failure_announcement.assert_called_once_with(
+            "Sorry, I couldn't contact the language model."
+        )
+        assert mock_led.set_state.call_args_list[-1].args[0] == AssistantState.FAILURE
+
+    @patch("command_handler.execute_ha_command")
     @patch("command_handler.transcribe_audio")
     @patch("command_handler.record_utterance")
     @patch("command_handler.fetch_ha_devices")  # Updated to match command_handler.py's import

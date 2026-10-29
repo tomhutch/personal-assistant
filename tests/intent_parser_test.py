@@ -1,8 +1,13 @@
 import pytest
+import requests
 from unittest.mock import patch, MagicMock
 from intent_parser import parse_intent
 
 class TestParseIntent:
+    @patch("requests.post", side_effect=requests.ConnectionError("connection refused"))
+    def test_slm_connection_failure_returns_none(self, mock_post):
+        assert parse_intent("turn on the light", []) is None
+
     @patch("requests.post")
     def test_scenario_valid_intent_parsing(self, mock_post):
         """Scenario: Qwen SLM correctly maps transcript and device list to a valid action JSON."""

@@ -6,7 +6,7 @@ from config import SLM_URL, SLM_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
-def parse_intent(transcript: str, controllable_devices: list) -> dict:
+def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
     """
     Sends the transcript and available devices to SLM 
     to parse into a Home Assistant domain, service, and entity_id.
@@ -46,7 +46,7 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict:
 
         if response.status_code != 200:
             logger.error("❌ Qwen SLM returned error status %d: %s", response.status_code, response.text)
-            return {}
+            return None
             
         data = response.json()
         
@@ -70,7 +70,7 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict:
         
     except requests.RequestException as e:
         logger.error("❌ Failed to connect to Qwen SLM service: %s", e)
-        return {}
+        return None
         
     except json.JSONDecodeError as e:
         logger.error("❌ Failed to decode JSON from Qwen response: %s", e)

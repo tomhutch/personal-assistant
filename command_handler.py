@@ -128,6 +128,13 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
         if shutdown_event and shutdown_event.is_set():
             return
 
+        if intent is None:
+            logger.error("❌ Qwen SLM is unavailable; cannot parse the command.")
+            if led:
+                led.set_state(AssistantState.FAILURE)
+            _announce_problem("Sorry, I couldn't contact the language model.")
+            return
+
         if intent and "domain" in intent and "service" in intent and "entity_id" in intent:
             logger.info(
                 "⚡ Executing on Home Assistant: %s -> %s",
