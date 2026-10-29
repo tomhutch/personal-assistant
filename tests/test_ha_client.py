@@ -35,9 +35,28 @@ class TestHomeAssistantClient:
         """Scenario: Successfully fires a service call to Home Assistant to turn off a device."""
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.content = b'[{"entity_id":"switch.sonoff_s60zbtpg","state":"off"}]'
+        mock_response.json.return_value = [
+            {"entity_id": "switch.sonoff_s60zbtpg", "state": "off"}
+        ]
         mock_post.return_value = mock_response
         
         success = execute_ha_command(domain="switch", service="turn_off", entity_id="switch.sonoff_s60zbtpg")
         
         assert success is True
         mock_post.assert_called_once()
+
+    @patch("requests.post")
+    def test_empty_success_response_is_command_failure(self, mock_post, caplog):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = b"[]"
+        mock_response.json.return_value = []
+        mock_post.return_value = mock_response
+
+        success = execute_ha_command(
+            domain="switch", service="turn_on", entity_id="switch.plug_2"
+        )
+
+        assert success is False
+        assert "returned HTTP 200 but reported no state change" in caplog.text

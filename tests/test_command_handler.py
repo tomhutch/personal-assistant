@@ -71,6 +71,9 @@ class TestHandleVoiceCommand:
             AssistantState.PROCESSING,
             AssistantState.FAILURE,
         ]
+        self.announce_problem.assert_called_once_with(
+            "Hmm, I couldn't control that device. Please check Home Assistant."
+        )
 
     @patch("command_handler.transcribe_audio")
     @patch("command_handler.record_utterance")

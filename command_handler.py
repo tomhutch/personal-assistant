@@ -150,7 +150,7 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
                 )
             if not command_succeeded:
                 logger.error("❌ Home Assistant command failed for %s.", intent['entity_id'])
-                _announce_problem("I couldn't control that device. Please check Home Assistant.")
+                _announce_problem("Hmm, I couldn't control that device. Please check Home Assistant.")
         else:
             logger.warning("⚠️ Could not resolve intent or missing entity mapping.")
             if led:

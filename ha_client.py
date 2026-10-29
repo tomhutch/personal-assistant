@@ -57,11 +57,26 @@ def execute_ha_command(domain: str, service: str, entity_id: str) -> bool:
         url = f"{HA_URL}/api/services/{domain}/{service}"
         logger.info("🚀 Firing POST to Home Assistant for %s...", entity_id)
         response = requests.post(url, headers=headers, json=payload, timeout=5.0)
-        
+
         logger.info("  ➜ HA API Status Code: %d", response.status_code)
-        logger.info("  ➜ HA Response: %s", response.json() if response.content else "[]")
-        
-        return response.status_code == 200
+        result = response.json() if response.content else []
+        logger.info("  ➜ HA Response: %s", result)
+
+        if response.status_code != 200:
+            return False
+
+        entity_changed = isinstance(result, list) and any(
+            isinstance(state, dict) and state.get("entity_id") == entity_id
+            for state in result
+        )
+        if not entity_changed:
+            logger.error(
+                "❌ Home Assistant returned HTTP 200 but reported no state change for %s.",
+                entity_id,
+            )
+            return False
+
+        return True
     except requests.RequestException as e:
         logger.error("❌ Failed to execute Home Assistant command: %s", e)
         return False
