@@ -176,9 +176,9 @@ make deploy
 configures and incrementally rebuilds CPU-enabled `llama-server` into
 `/usr/local/bin` and CPU-enabled `whisper.cpp`. It then verifies the app binary,
 generates `.env` from `.env.example`, and registers and starts the three systemd
-services. The llama-server unit uses `--mlock` to keep model pages resident in
-RAM and sets an unlimited memlock limit; ensure the host has enough available
-memory for the model and context.
+services. The llama-server unit uses `--load-mode mmap+mlock` to keep model pages
+resident in RAM and sets an unlimited memlock limit; ensure the host has enough
+available memory for the model and context.
 
 > After the first run, edit `/home/ubuntu/personal-assistant/.env` and set your
 > `HA_TOKEN`, then `sudo systemctl restart python-app`.
