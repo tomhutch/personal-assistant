@@ -6,7 +6,8 @@ After=network.target
 User=%%DEPLOY_USER%%
 WorkingDirectory=%%BASE_DIR%%/whisper.cpp
 ExecStart=%%BASE_DIR%%/whisper.cpp/build/bin/whisper-server \
-  -m %%BASE_DIR%%/whisper.cpp/models/ggml-base.en.bin \
+  -m %%BASE_DIR%%/whisper.cpp/models/ggml-tiny.en.bin \
+  -t 4 \
   --port 8081 \
   --host 127.0.0.1
 Restart=always

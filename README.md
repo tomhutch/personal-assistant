@@ -89,12 +89,16 @@ In a second terminal:
 
 ```bash
 git clone https://github.com/ggml-org/whisper.cpp.git
-cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release
-cmake --build whisper.cpp/build --config Release --target whisper-server --parallel
-(cd whisper.cpp && bash ./models/download-ggml-model.sh base.en)
+cmake -S whisper.cpp -B whisper.cpp/build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_FLAGS="-O3 -march=native" \
+  -DCMAKE_CXX_FLAGS="-O3 -march=native"
+cmake --build whisper.cpp/build --config Release --target whisper-server --parallel 4
+(cd whisper.cpp && bash ./models/download-ggml-model.sh tiny.en)
 
 ./whisper.cpp/build/bin/whisper-server \
-  -m whisper.cpp/models/ggml-base.en.bin \
+  -m whisper.cpp/models/ggml-tiny.en.bin \
+  -t 4 \
   --port 8081 --host 127.0.0.1
 ```
 

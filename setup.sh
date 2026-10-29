@@ -8,7 +8,7 @@
 #   2. Piper voice model download (.onnx & .json)
 #   3. Qwen 2.5 1.5B GGUF model download
 #   4. llama.cpp build -> /usr/local/bin/llama-server (parallel 1 for safety)
-#   5. whisper.cpp build + base.en model download (parallel 1 for safety)
+#   5. whisper.cpp build + tiny.en model download
 #   6. Standalone app binary check & auto-permissions fix
 #   7. Environment file setup (.env)
 #   8. Dynamic systemd service registration (system-wide for servers, user-space for assistant)
@@ -24,7 +24,7 @@ LLAMA_SERVER_BIN="/usr/local/bin/llama-server"
 
 QWEN_MODEL="qwen2.5-1.5b-instruct-q4_k_m.gguf"
 QWEN_URL="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/${QWEN_MODEL}"
-WHISPER_MODEL="base.en"
+WHISPER_MODEL="tiny.en"
 PIPER_VOICE="en_US-norman-medium"
 PIPER_VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/norman/medium/${PIPER_VOICE}"
 
@@ -111,8 +111,10 @@ echo "=== 5. Building whisper.cpp ==="
 [ -d whisper.cpp ] || git clone https://github.com/ggml-org/whisper.cpp.git
 cmake -S whisper.cpp -B whisper.cpp/build \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-O3 -march=native" \
+    -DCMAKE_CXX_FLAGS="-O3 -march=native" \
     -DGGML_VULKAN=OFF
-cmake --build whisper.cpp/build --config Release --target whisper-server --parallel 1
+cmake --build whisper.cpp/build --config Release --target whisper-server --parallel 4
 ( cd whisper.cpp && bash ./models/download-ggml-model.sh "$WHISPER_MODEL" )
 
 echo "=== 6. Checking the standalone app binary ==="
