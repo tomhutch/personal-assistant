@@ -51,6 +51,17 @@ On Ubuntu this requires downloading from source and downloading pretrained model
 .venv/bin/python -c "import openwakeword.utils; openwakeword.utils.download_models()"
 ```
 
+### Install Piper voice
+
+Piper is installed with `requirements.txt`. Download the default low-quality
+British English voice from the repository root:
+```bash
+.venv/bin/python -m piper.download_voices en_GB-southern_english_female-low
+```
+
+Set `PIPER_VOICE_MODEL` to another downloaded `.onnx` path to use a different
+voice. The Ubuntu `setup.sh` deployment downloads the default voice automatically.
+
 ### Start the Llama Server (Qwen 2.5 3B SLM, port 8080)
 
 ```bash

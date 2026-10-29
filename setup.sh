@@ -24,6 +24,8 @@ LLAMA_SERVER_BIN="/usr/local/bin/llama-server"
 QWEN_MODEL="qwen2.5-1.5b-instruct-q4_k_m.gguf"
 QWEN_URL="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/${QWEN_MODEL}"
 WHISPER_MODEL="base.en"
+PIPER_VOICE="en_GB-southern_english_female-low"
+PIPER_VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/southern_english_female/low/${PIPER_VOICE}"
 
 # --- Sanity checks -------------------------------------------------------------
 if [ "$(id -u)" -eq 0 ]; then
@@ -50,6 +52,17 @@ sudo apt install -y libportaudio2
 sudo apt install -y libasound2 2>/dev/null || sudo apt install -y libasound2t64
 sudo usermod -aG audio "$DEPLOY_USER"
 sudo apt install -y libusb-1.0-0 libusb-1.0-0-dev
+
+echo "=== Installing Piper voice ==="
+for extension in onnx onnx.json; do
+    voice_file="${PIPER_VOICE}.${extension}"
+    if [ ! -s "$voice_file" ]; then
+        curl -L --fail -o "${voice_file}.part" "${PIPER_VOICE_URL}.${extension}?download=true"
+        mv "${voice_file}.part" "$voice_file"
+    else
+        echo "$voice_file already present, skipping."
+    fi
+done
 
 echo "Configuring BlinkStick USB access for $DEPLOY_USER"
 sudo groupadd --force plugdev

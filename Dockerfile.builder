@@ -22,7 +22,8 @@ RUN python -c "import openwakeword.utils; openwakeword.utils.download_models()"
 COPY . .
 
 # Bundle into a single executable, collecting all assets
-RUN pyinstaller --onefile --name personal-assistant --collect-all openwakeword main.py
+RUN pyinstaller --onefile --name personal-assistant \
+    --collect-all openwakeword --collect-all piper main.py
 
 # --- Stage 2: export artifact ---
 FROM scratch AS export

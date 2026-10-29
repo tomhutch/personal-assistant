@@ -14,6 +14,8 @@ __pycache__/
 models/
 llama.cpp/
 whisper.cpp/
+en_GB-southern_english_female-low.onnx
+en_GB-southern_english_female-low.onnx.json
 
 # Standalone binary build output (Dockerfile.builder -> dist/)
 dist/

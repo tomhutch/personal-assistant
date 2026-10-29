@@ -6,8 +6,15 @@ from transcriber import transcribe_audio
 from ha_client import fetch_ha_devices, execute_ha_command
 from intent_parser import parse_intent
 from led import AssistantState
+from speech import speak
 
 logger = logging.getLogger(__name__)
+
+def _announce_problem(message):
+    try:
+        speak(message)
+    except Exception:
+        logger.exception("Could not play spoken failure message.")
 
 def _run_named_task(name, function, *args):
     try:
@@ -70,6 +77,12 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             logger.exception("❌ Parallel command setup failed: %s", exc)
             if led:
                 led.set_state(AssistantState.FAILURE)
+            if "fetch_ha_devices failed" in str(exc):
+                _announce_problem("I couldn't access Home Assistant. Check its connection and access token.")
+            elif "record_utterance failed" in str(exc):
+                _announce_problem("I couldn't record your command. Please check the microphone.")
+            else:
+                _announce_problem("I couldn't start processing your command.")
             return
 
         if shutdown_event and shutdown_event.is_set():
@@ -77,11 +90,13 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
         if controllable_devices is None:
             if led:
                 led.set_state(AssistantState.FAILURE)
+            _announce_problem("I couldn't access Home Assistant. Check its connection and access token.")
             return
         if len(audio_data) == 0:
             logger.warning("⚠️ No audio recorded. Returning to standby.")
             if led:
                 led.set_state(AssistantState.FAILURE)
+            _announce_problem("I didn't hear a command.")
             return
 
         if led:
@@ -104,6 +119,7 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             logger.info("⚠️ Empty transcript. Returning to standby.")
             if led:
                 led.set_state(AssistantState.FAILURE)
+            _announce_problem("Sorry, I couldn't understand that.")
             return
 
         logger.debug("🧠 Parsing intent with Qwen SLM...")
@@ -127,11 +143,14 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
                 )
             if not command_succeeded:
                 logger.error("❌ Home Assistant command failed for %s.", intent['entity_id'])
+                _announce_problem("I couldn't control that device. Please check Home Assistant.")
         else:
             logger.warning("⚠️ Could not resolve intent or missing entity mapping.")
             if led:
                 led.set_state(AssistantState.FAILURE)
+            _announce_problem("Sorry, I couldn't determine which device you meant.")
     except Exception:
         if led:
             led.set_state(AssistantState.FAILURE)
+        _announce_problem("Sorry, something went wrong while handling that command.")
         raise

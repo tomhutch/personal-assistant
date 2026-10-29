@@ -29,3 +29,8 @@ LOG_LEVEL = getattr(logging, LOG_LEVEL_STR, logging.INFO)
 # LED Config
 LED_ENABLED = True
 LED_BRIGHTNESS = 0.1
+
+# Text-to-speech voice model downloaded by piper.download_voices
+PIPER_VOICE_MODEL = os.getenv(
+	"PIPER_VOICE_MODEL", "en_GB-southern_english_female-low.onnx"
+)

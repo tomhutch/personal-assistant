@@ -5,6 +5,12 @@ from command_handler import handle_voice_command
 from led import AssistantState
 
 class TestHandleVoiceCommand:
+    @pytest.fixture(autouse=True)
+    def mock_failure_announcement(self, monkeypatch):
+        self.announce_problem = MagicMock()
+        monkeypatch.setattr("command_handler._announce_problem", self.announce_problem)
+        return self.announce_problem
+
     @patch("command_handler.execute_ha_command")
     @patch("command_handler.parse_intent")
     @patch("command_handler.transcribe_audio")
@@ -109,7 +115,8 @@ class TestHandleVoiceCommand:
     @patch("command_handler.record_utterance")
     @patch("command_handler.fetch_ha_devices")
     def test_device_fetch_failure_result_stops_before_transcription(
-        self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse
+        self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse,
+        mock_failure_announcement,
     ):
         mock_fetch_devices.return_value = None
 
@@ -128,6 +135,9 @@ class TestHandleVoiceCommand:
             AssistantState.LISTENING,
             AssistantState.FAILURE,
         ]
+        mock_failure_announcement.assert_called_once_with(
+            "I couldn't access Home Assistant. Check its connection and access token."
+        )
 
     @patch("command_handler.execute_ha_command")
     @patch("command_handler.transcribe_audio")
