@@ -139,10 +139,18 @@ class LED:
         g = int(base_rgb[1] * brightness)
         b = int(base_rgb[2] * brightness)
 
-      self.bstick.set_color(channel=0, index=0, red=r, green=g, blue=b)
-      self.bstick.set_color(channel=0, index=1, red=r, green=g, blue=b)
-    except Exception as e:
-      logger.critical("CRITICAL LED ERROR: Failed to set color: %s", e, exc_info=True)
+      for index in (0, 1):
+        try:
+          self.bstick.set_color(channel=0, index=index, red=r, green=g, blue=b)
+        except Exception as e:
+          if type(e).__name__ == "USBError" and getattr(e, "errno", None) == 5:
+            logger.debug("BlinkStick USB EIO while setting LED %d: %s", index, e)
+          else:
+            logger.error(
+                "Failed to set BlinkStick LED %d: %s", index, e, exc_info=True
+            )
+    except Exception:
+      logger.exception("Unexpected error preparing BlinkStick color %r.", name)
 
   def _animation_loop(self):
     while self._running:

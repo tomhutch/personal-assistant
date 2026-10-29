@@ -79,12 +79,34 @@ class TestLEDManager(unittest.TestCase):
     led = LED()
     led._running = False
     led._thread.join()
+    mock_device.set_color.reset_mock()
     mock_device.set_color.side_effect = PermissionError("USB access denied")
 
-    with self.assertLogs("led", level="CRITICAL") as captured:
+    with self.assertLogs("led", level="ERROR") as captured:
       led._set_both("red")
 
-    self.assertIn("CRITICAL LED ERROR: Failed to set color: USB access denied", captured.output[0])
+    self.assertIn("Failed to set BlinkStick LED 0: USB access denied", captured.output[0])
+    self.assertIn("Failed to set BlinkStick LED 1: USB access denied", captured.output[1])
+    self.assertEqual(mock_device.set_color.call_count, 2)
+    mock_device.set_color.side_effect = None
+
+  def test_usb_eio_is_debug_logged_and_other_led_is_still_written(self):
+    led = LED()
+    led._running = False
+    led._thread.join()
+    mock_device.set_color.reset_mock()
+
+    class USBError(OSError):
+      pass
+
+    mock_device.set_color.side_effect = [USBError(5, "Input/output error"), None]
+
+    with self.assertLogs("led", level="DEBUG") as captured:
+      led._set_both("red")
+
+    self.assertIn("BlinkStick USB EIO while setting LED 0", captured.output[0])
+    self.assertEqual(mock_device.set_color.call_count, 2)
+    self.assertEqual(mock_device.set_color.call_args_list[1].kwargs["index"], 1)
     mock_device.set_color.side_effect = None
 
   def test_failure_state_resets_to_passive(self):
