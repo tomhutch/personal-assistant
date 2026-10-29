@@ -56,7 +56,7 @@ systemctl --user stop personal-assistant 2>/dev/null || true
 echo "=== 1. Installing system dependencies & hardware rules ==="
 sudo apt update
 sudo apt install -y cmake build-essential git curl
-sudo apt install -y libvulkan-dev mesa-vulkan-drivers vulkan-tools
+sudo apt install -y libvulkan-dev mesa-vulkan-drivers vulkan-tools glslc
 sudo apt install -y libportaudio2
 sudo apt install -y libasound2 2>/dev/null || sudo apt install -y libasound2t64
 sudo usermod -aG audio "$DEPLOY_USER"
