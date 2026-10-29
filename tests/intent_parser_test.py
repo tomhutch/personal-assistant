@@ -91,6 +91,34 @@ class TestParseIntent:
         }
 
     @patch("requests.post")
+    def test_light_entity_domain_overrides_slm_domain(self, mock_post, caplog):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{
+                "message": {
+                    "content": (
+                        '{"domain":"homeassistant","service":"turn_on",'
+                        '"entity_id":"light.living_room_lights"}'
+                    )
+                }
+            }]
+        }
+        mock_post.return_value = mock_response
+
+        intent = parse_intent(
+            "turn on the living room lights",
+            [{"entity_id": "light.living_room_lights", "name": "Living Room Lights"}],
+        )
+
+        assert intent == {
+            "domain": "light",
+            "service": "turn_on",
+            "entity_id": "light.living_room_lights",
+        }
+        assert "using inferred service domain light" in caplog.text
+
+    @patch("requests.post")
     def test_rejects_brightness_for_switch(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200

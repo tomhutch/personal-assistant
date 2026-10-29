@@ -21,7 +21,8 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
         "return only a JSON object with 'domain', 'service', and 'entity_id'. "
         "Use only an exact entity_id from the available devices. Supported services are "
         "turn_on and turn_off for switches, lights, and groups. For group.* entities, "
-        "use domain 'homeassistant'; otherwise use the entity domain. For a requested light brightness, "
+        "use domain 'homeassistant'; for light.* or switch.* entities, use the matching entity domain. "
+        "For a requested light brightness, "
         "use domain 'light', service 'turn_on', and add 'brightness_pct' as a number from 1 to 100. "
         "Do not include brightness_pct for switches or when no brightness was requested. "
         "Use an available device's area name to disambiguate between similarly named devices. "
@@ -88,9 +89,16 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
         entity_domain, separator, _ = entity_id.partition(".")
         service_domain = "homeassistant" if entity_domain == "group" else entity_domain
         service = intent_data.get("service")
-        if not separator or intent_data.get("domain") != service_domain:
-            logger.warning("SLM returned an invalid domain for %s.", entity_id)
+        if not separator:
+            logger.warning("SLM returned an invalid entity_id: %r", entity_id)
             return {}
+        if intent_data.get("domain") != service_domain:
+            logger.warning(
+                "SLM returned domain %r for %s; using inferred service domain %s.",
+                intent_data.get("domain"),
+                entity_id,
+                service_domain,
+            )
         if entity_domain not in {"switch", "light", "group"} or service not in {"turn_on", "turn_off"}:
             logger.warning("SLM returned an unsupported service for %s.", entity_id)
             return {}
