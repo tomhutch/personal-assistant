@@ -4,9 +4,11 @@ After=network.target
 
 [Service]
 User=%%DEPLOY_USER%%
+LimitMEMLOCK=infinity
 WorkingDirectory=%%BASE_DIR%%/models
 ExecStart=/usr/local/bin/llama-server \
   -m %%BASE_DIR%%/models/%%QWEN_MODEL%% \
+  --mlock \
   --port 8080 \
   --ctx-size 2048 \
   -fa on \
