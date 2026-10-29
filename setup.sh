@@ -95,13 +95,17 @@ else
 fi
 
 echo "=== 4. Building llama.cpp (llama-server) ==="
-[ -d llama.cpp ] || git clone https://github.com/ggml-org/llama.cpp.git
-cmake -S llama.cpp -B llama.cpp/build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DGGML_NATIVE=ON \
-    -DGGML_VULKAN=OFF
-cmake --build llama.cpp/build --config Release --target llama-server --parallel 1
-sudo install -m 755 llama.cpp/build/bin/llama-server "$LLAMA_SERVER_BIN"
+if [ ! -x "$LLAMA_SERVER_BIN" ]; then
+    [ -d llama.cpp ] || git clone https://github.com/ggml-org/llama.cpp.git
+    cmake -S llama.cpp -B llama.cpp/build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_NATIVE=ON \
+        -DGGML_VULKAN=OFF
+    cmake --build llama.cpp/build --config Release --target llama-server --parallel 1
+    sudo cp llama.cpp/build/bin/llama-server "$LLAMA_SERVER_BIN"
+else
+    echo "llama-server already installed at $LLAMA_SERVER_BIN, skipping."
+fi
 
 echo "=== 5. Building whisper.cpp ==="
 [ -d whisper.cpp ] || git clone https://github.com/ggml-org/whisper.cpp.git
