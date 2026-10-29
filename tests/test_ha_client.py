@@ -30,6 +30,33 @@ class TestHomeAssistantClient:
         assert get_ha_devices() is None
         assert "Failed to fetch HA states. Status: 401" in caplog.text
 
+    @patch("requests.get")
+    def test_fetch_excludes_network_led_entities(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {
+                "entity_id": "switch.plug_2_network_led",
+                "attributes": {"friendly_name": "Plug 2 Network LED"},
+                "state": "on",
+            },
+            {
+                "entity_id": "switch.plug_2",
+                "attributes": {"friendly_name": "Plug 2"},
+                "state": "off",
+            },
+            {
+                "entity_id": "light.network_status",
+                "attributes": {"friendly_name": "Network_LED"},
+                "state": "on",
+            },
+        ]
+        mock_get.return_value = mock_response
+
+        devices = get_ha_devices()
+
+        assert [device["entity_id"] for device in devices] == ["switch.plug_2"]
+
     @patch("requests.post")
     def test_scenario_execute_command_success(self, mock_post):
         """Scenario: Successfully fires a service call to Home Assistant to turn off a device."""

@@ -31,10 +31,13 @@ def fetch_ha_devices():
 
     for state in states:
         entity_id = state.get("entity_id", "")
+        name = state.get("attributes", {}).get("friendly_name", entity_id)
+        if "network_led" in entity_id.casefold() or "network_led" in name.casefold():
+            continue
         if entity_id.startswith("switch.") or entity_id.startswith("light."):
             controllable.append({
                 "entity_id": entity_id,
-                "name": state.get("attributes", {}).get("friendly_name", entity_id),
+                "name": name,
                 "state": state.get("state")
             })
 
