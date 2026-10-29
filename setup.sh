@@ -6,7 +6,7 @@
 #   0. Stopping and purging existing/legacy services (if running)
 #   1. System dependencies (build tools, PortAudio/ALSA runtime libs, BlinkStick udev rules)
 #   2. Piper voice model download (.onnx & .json)
-#   3. Qwen 2.5 1.5B GGUF model download
+#   3. Qwen 2.5 0.5B GGUF model download
 #   4. llama.cpp build -> /usr/local/bin/llama-server (parallel 1 for safety)
 #   5. whisper.cpp build + tiny.en model download
 #   6. Standalone app binary check & auto-permissions fix
@@ -22,8 +22,8 @@ BASE_DIR="${BASE_DIR:-$SCRIPT_DIR}"
 APP_BIN="personal-assistant"
 LLAMA_SERVER_BIN="/usr/local/bin/llama-server"
 
-QWEN_MODEL="qwen2.5-1.5b-instruct-q4_k_m.gguf"
-QWEN_URL="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/${QWEN_MODEL}"
+QWEN_MODEL="qwen2.5-0.5b-instruct-q4_k_m.gguf"
+QWEN_URL="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/${QWEN_MODEL}"
 WHISPER_MODEL="tiny.en"
 PIPER_VOICE="en_US-norman-medium"
 PIPER_VOICE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/norman/medium/${PIPER_VOICE}"
@@ -84,7 +84,7 @@ for extension in onnx onnx.json; do
     fi
 done
 
-echo "=== 3. Downloading Qwen 2.5 1.5B model ==="
+echo "=== 3. Downloading Qwen 2.5 0.5B model ==="
 mkdir -p models
 if [ ! -f "models/${QWEN_MODEL}" ]; then
     echo "Downloading ${QWEN_MODEL}..."

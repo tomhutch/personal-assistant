@@ -1,6 +1,6 @@
 # Personal Assistant
 
-A lightweight local voice controlled personal assistant that captures microphone input, transcribes via local `whisper-server`, parses intent using an SLM (Qwen 2.5 3B), and controls Home Assistant devices.
+A lightweight local voice controlled personal assistant that captures microphone input, transcribes via local `whisper-server`, parses intent using an SLM (Qwen 2.5 0.5B), and controls Home Assistant devices.
 
 ---
 
@@ -65,7 +65,7 @@ Piper uses the system's default output device by default. To choose another
 output, set `PIPER_OUTPUT_DEVICE` to a fragment of its device name; PulseAudio
 devices are preferred when multiple matching entries are available.
 
-### Start the Llama Server (Qwen 2.5 3B SLM, port 8080)
+### Start the Llama Server (Qwen 2.5 0.5B SLM, port 8080)
 
 ```bash
 git clone https://github.com/ggml-org/llama.cpp.git
@@ -73,11 +73,11 @@ cmake -S llama.cpp -B llama.cpp/build -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=O
 cmake --build llama.cpp/build --config Release --target llama-server --parallel
 
 mkdir -p models
-curl -L --fail -o models/qwen2.5-3b-instruct-q4_k_m.gguf \
-  https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf
+curl -L --fail -o models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
 
 ./llama.cpp/build/bin/llama-server \
-  -m models/qwen2.5-3b-instruct-q4_k_m.gguf \
+  -m models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
   --port 8080 --ctx-size 2048 \
   -fa on --cache-prompt --cache-reuse 256 \
   --host 127.0.0.1
@@ -176,7 +176,7 @@ cd personal-assistant
 make deploy
 ```
 
-`setup.sh` installs system dependencies, downloads the Qwen 2.5 1.5B GGUF,
+`setup.sh` installs system dependencies, downloads the Qwen 2.5 0.5B GGUF,
 configures and incrementally rebuilds CPU-enabled `llama-server` into
 `/usr/local/bin` and CPU-enabled `whisper.cpp`. It then verifies the app binary,
 generates `.env` from `.env.example`, and registers and starts the three systemd
