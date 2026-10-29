@@ -75,6 +75,7 @@ def test_select_output_device_uses_system_default_when_unset(
         "default_samplerate": 44100,
     }
     monkeypatch.setattr("speech.PIPER_OUTPUT_DEVICE", "")
+    monkeypatch.setattr("speech.sys.platform", "linux")
     mock_query_devices.side_effect = [[], default_device]
 
     index, device = _select_output_device()
@@ -88,11 +89,32 @@ def test_select_output_device_uses_system_default_when_unset(
 
 
 @patch("speech.sd.query_devices")
+def test_select_output_device_on_macos_uses_core_audio_default(
+    mock_query_devices, monkeypatch
+):
+    default_device = {
+        "name": "MacBook Pro Speakers",
+        "index": 2,
+        "default_samplerate": 48000,
+    }
+    monkeypatch.setattr("speech.PIPER_OUTPUT_DEVICE", "")
+    monkeypatch.setattr("speech.sys.platform", "darwin")
+    mock_query_devices.return_value = default_device
+
+    index, device = _select_output_device()
+
+    assert index == 2
+    assert device is default_device
+    mock_query_devices.assert_called_once_with(kind="output")
+
+
+@patch("speech.sd.query_devices")
 @patch("speech.sd.query_hostapis")
 def test_select_output_device_auto_prefers_usb_pulseaudio_alias(
     mock_query_hostapis, mock_query_devices, monkeypatch
 ):
     monkeypatch.setattr("speech.PIPER_OUTPUT_DEVICE", "")
+    monkeypatch.setattr("speech.sys.platform", "linux")
     mock_query_devices.side_effect = [[
         {
             "name": "Anker PowerConf S330: USB Audio (hw:1,0)",

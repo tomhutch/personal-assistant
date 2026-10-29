@@ -1,6 +1,7 @@
 import logging
 import math
 import re
+import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -34,13 +35,6 @@ def _resample_audio(audio: np.ndarray, source_rate: int, target_rate: int) -> np
 
 
 def _select_output_device():
-    devices = sd.query_devices()
-    output_devices = [
-        (index, device)
-        for index, device in enumerate(devices)
-        if device["max_output_channels"] > 0
-    ]
-
     def prefer_pulseaudio(matches):
         if not matches:
             return None
@@ -55,6 +49,17 @@ def _select_output_device():
         )
 
     configured_name = re.sub(r"[^a-z0-9]", "", PIPER_OUTPUT_DEVICE.casefold())
+    if sys.platform == "darwin" and not configured_name:
+        device = sd.query_devices(kind="output")
+        return int(device["index"]), device
+
+    devices = sd.query_devices()
+    output_devices = [
+        (index, device)
+        for index, device in enumerate(devices)
+        if device["max_output_channels"] > 0
+    ]
+
     if configured_name:
         matches = [
             (index, device) for index, device in output_devices
