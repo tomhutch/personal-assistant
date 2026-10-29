@@ -34,3 +34,4 @@ LED_BRIGHTNESS = 0.1
 PIPER_VOICE_MODEL = os.getenv(
 	"PIPER_VOICE_MODEL", "en_US-norman-medium.onnx"
 )
+PIPER_OUTPUT_DEVICE = os.getenv("PIPER_OUTPUT_DEVICE", "")

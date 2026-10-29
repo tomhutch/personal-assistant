@@ -61,6 +61,9 @@ US English voice from the repository root:
 
 Set `PIPER_VOICE_MODEL` to another downloaded `.onnx` path to use a different
 voice. The Ubuntu `setup.sh` deployment downloads the default voice automatically.
+Piper uses the system's default output device by default. To choose another
+output, set `PIPER_OUTPUT_DEVICE` to a fragment of its device name; PulseAudio
+devices are preferred when multiple matching entries are available.
 
 ### Start the Llama Server (Qwen 2.5 3B SLM, port 8080)
 
