@@ -87,3 +87,23 @@ class TestHomeAssistantClient:
 
         assert success is False
         assert "returned HTTP 200 but reported no state change" in caplog.text
+
+    @patch("requests.post")
+    def test_light_brightness_is_sent_to_home_assistant(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = b'[{"entity_id":"light.living_room","state":"on"}]'
+        mock_response.json.return_value = [
+            {"entity_id": "light.living_room", "state": "on"}
+        ]
+        mock_post.return_value = mock_response
+
+        success = execute_ha_command(
+            "light", "turn_on", "light.living_room", brightness_pct=45
+        )
+
+        assert success is True
+        assert mock_post.call_args.kwargs["json"] == {
+            "entity_id": "light.living_room",
+            "brightness_pct": 45,
+        }

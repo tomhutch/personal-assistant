@@ -38,7 +38,12 @@ class TestHandleVoiceCommand:
         mock_record.assert_called_once()
         mock_transcribe.assert_called_once()
         mock_parse.assert_called_once()
-        mock_exec.assert_called_once_with("switch", "turn_off", "switch.sonoff_s60zbtpg")
+        mock_exec.assert_called_once_with(
+            "switch",
+            "turn_off",
+            "switch.sonoff_s60zbtpg",
+            brightness_pct=None,
+        )
         assert [call.args[0] for call in mock_led.set_state.call_args_list] == [
             AssistantState.LISTENING,
             AssistantState.PROCESSING,

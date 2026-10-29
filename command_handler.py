@@ -142,7 +142,10 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
                 intent['entity_id']
             )
             command_succeeded = execute_ha_command(
-                intent['domain'], intent['service'], intent['entity_id']
+                intent['domain'],
+                intent['service'],
+                intent['entity_id'],
+                brightness_pct=intent.get("brightness_pct"),
             )
             if led:
                 led.set_state(

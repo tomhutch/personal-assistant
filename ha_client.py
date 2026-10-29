@@ -48,13 +48,20 @@ def fetch_ha_devices():
 # Alias for backward compatibility if needed
 get_ha_devices = fetch_ha_devices
 
-def execute_ha_command(domain: str, service: str, entity_id: str) -> bool:
+def execute_ha_command(
+    domain: str, service: str, entity_id: str, brightness_pct: float | None = None
+) -> bool:
     """Executes a service call on a Home Assistant entity (e.g., switch/turn_off)."""
     headers = {
         "Authorization": f"Bearer {HA_TOKEN}",
         "Content-Type": "application/json",
     }
     payload = {"entity_id": entity_id}
+    if brightness_pct is not None:
+        if domain != "light" or service != "turn_on" or not 1 <= brightness_pct <= 100:
+            logger.error("❌ Invalid brightness request for %s.", entity_id)
+            return False
+        payload["brightness_pct"] = brightness_pct
     
     try:
         url = f"{HA_URL}/api/services/{domain}/{service}"

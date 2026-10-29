@@ -18,9 +18,13 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
     
     system_prompt = (
         "You are a smart home intent parser. Given a user transcript and a list of available devices, "
-        "output a strict JSON object with keys: 'domain', 'service', and 'entity_id'. "
-        "Example: {\"domain\": \"switch\", \"service\": \"turn_off\", \"entity_id\": \"switch.plug_1\"}. "
-        "Do not include markdown blocks or extra text, just raw JSON."
+        "return only a JSON object with 'domain', 'service', and 'entity_id'. "
+        "Use only an exact entity_id from the available devices. Supported services are "
+        "turn_on and turn_off for switches and lights. For a requested light brightness, "
+        "use domain 'light', service 'turn_on', and add 'brightness_pct' as a number from 1 to 100. "
+        "Do not include brightness_pct for switches or when no brightness was requested. "
+        "If no listed device matches or the request is ambiguous, return {}. "
+        "Do not include markdown or extra text."
     )
     
     user_prompt = f"Transcript: \"{transcript}\"\nAvailable Devices:\n{devices_json}"
@@ -66,7 +70,47 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
         cleaned_content = cleaned_content.strip()
         
         intent_data = json.loads(cleaned_content)
-        return intent_data
+        if not isinstance(intent_data, dict):
+            logger.error("❌ SLM intent must be a JSON object.")
+            return {}
+
+        entity_id = intent_data.get("entity_id")
+        device = next(
+            (device for device in controllable_devices if device.get("entity_id") == entity_id),
+            None,
+        )
+        if not device:
+            logger.warning("SLM selected an unknown or missing entity_id: %r", entity_id)
+            return {}
+
+        domain, separator, _ = entity_id.partition(".")
+        service = intent_data.get("service")
+        if not separator or intent_data.get("domain") != domain:
+            logger.warning("SLM returned an invalid domain for %s.", entity_id)
+            return {}
+        if domain not in {"switch", "light"} or service not in {"turn_on", "turn_off"}:
+            logger.warning("SLM returned an unsupported service for %s.", entity_id)
+            return {}
+
+        validated_intent = {
+            "domain": domain,
+            "service": service,
+            "entity_id": entity_id,
+        }
+        if "brightness_pct" in intent_data:
+            brightness_pct = intent_data["brightness_pct"]
+            if (
+                domain != "light"
+                or service != "turn_on"
+                or isinstance(brightness_pct, bool)
+                or not isinstance(brightness_pct, (int, float))
+                or not 1 <= brightness_pct <= 100
+            ):
+                logger.warning("SLM returned invalid brightness for %s.", entity_id)
+                return {}
+            validated_intent["brightness_pct"] = brightness_pct
+
+        return validated_intent
         
     except requests.RequestException as e:
         logger.error("❌ Failed to connect to Qwen SLM service: %s", e)
