@@ -8,7 +8,10 @@ from speech import speak
 
 @patch("speech._load_voice")
 @patch("speech.sd.OutputStream")
-@patch("speech.sd.query_devices", return_value={"default_samplerate": 48000})
+@patch(
+    "speech.sd.query_devices",
+    return_value={"name": "Test Output", "index": 1, "default_samplerate": 48000},
+)
 def test_speak_resamples_and_streams_at_output_sample_rate(
     mock_query_devices, mock_output_stream, mock_load_voice
 ):
@@ -22,6 +25,7 @@ def test_speak_resamples_and_streams_at_output_sample_rate(
     speak("I couldn't access Home Assistant.")
 
     mock_output_stream.assert_called_once_with(
+        device=1,
         samplerate=48000,
         channels=1,
         dtype="float32",

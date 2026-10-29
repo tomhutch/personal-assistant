@@ -35,7 +35,14 @@ def _resample_audio(audio: np.ndarray, source_rate: int, target_rate: int) -> np
 def speak(text: str):
     model_path = Path(PIPER_VOICE_MODEL).expanduser().resolve()
     voice = _load_voice(str(model_path))
-    output_rate = int(sd.query_devices(kind="output")["default_samplerate"])
+    output_device = sd.query_devices(kind="output")
+    output_rate = int(output_device["default_samplerate"])
+    logger.debug(
+        "Piper TTS output device: %s (index %s, %d Hz)",
+        output_device["name"],
+        output_device["index"],
+        output_rate,
+    )
     audio_chunks = [chunk.audio_float_array for chunk in voice.synthesize(text)]
     if not audio_chunks:
         return
@@ -44,6 +51,7 @@ def speak(text: str):
     audio = _resample_audio(audio, voice.config.sample_rate, output_rate)
 
     with sd.OutputStream(
+        device=output_device["index"],
         samplerate=output_rate,
         channels=1,
         dtype="float32",
