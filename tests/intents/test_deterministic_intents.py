@@ -78,6 +78,25 @@ def test_deterministic_intent_turns_on_named_light():
     }
 
 
+def test_deterministic_intent_resolves_first_second_and_third_plug():
+    devices = [
+        {"entity_id": "switch.plug_1", "name": "Plug 1"},
+        {"entity_id": "switch.plug_2", "name": "Plug 2"},
+        {"entity_id": "switch.plug_3", "name": "Plug 3"},
+    ]
+
+    for ordinal, entity_id in (
+        ("first", "switch.plug_1"),
+        ("second", "switch.plug_2"),
+        ("third", "switch.plug_3"),
+    ):
+        assert parse_intent_deterministic(f"turn off {ordinal} plug", devices) == {
+            "domain": "switch",
+            "service": "turn_off",
+            "entity_id": entity_id,
+        }
+
+
 def test_deterministic_intent_uses_ohf_voice_sentence_templates():
     devices = [{"entity_id": "light.living_room", "name": "Living Room Light", "area": "Living Room"}]
 

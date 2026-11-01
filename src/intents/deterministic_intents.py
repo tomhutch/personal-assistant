@@ -67,6 +67,10 @@ _DYNAMIC_SLOT_LISTS = {
     "volume_step_up",
     "color_temperature",
 }
+_ORDINAL_WORDS = (
+    "first", "second", "third", "fourth", "fifth",
+    "sixth", "seventh", "eighth", "ninth", "tenth",
+)
 
 
 def _find_ohf_intents_root() -> Path:
@@ -97,28 +101,45 @@ def _extract_brightness_pct(transcript: str) -> int | None:
 
 def _build_slot_lists(controllable_devices: list) -> dict[str, Any]:
     name_values = []
+    numbered_devices = {}
     area_values = []
     floor_values = []
 
     for device in controllable_devices:
         entity_id = device.get("entity_id") or ""
         name = device.get("name")
+        entity_name = entity_id.split(".")[-1].replace("_", " ") if entity_id else ""
+        canonical_name = name or entity_name
         area = device.get("area")
         floor = device.get("floor")
 
-        if name and name not in name_values:
-            name_values.append(name)
+        for alias in dict.fromkeys(value for value in (name, entity_name) if value):
+            name_values.append((alias, canonical_name))
 
-        entity_name = entity_id.split(".")[-1].replace("_", " ") if entity_id else ""
-        if entity_name and entity_name not in name_values:
-            name_values.append(entity_name)
+        numbered_name = re.fullmatch(r"(.+?)\s+(\d+)", canonical_name)
+        if numbered_name:
+            base_name, number = numbered_name.groups()
+            numbered_devices.setdefault(_normalize_value(base_name), []).append(
+                (int(number), base_name, canonical_name)
+            )
 
         if area and area not in area_values:
             area_values.append(area)
         if floor and floor not in floor_values:
             floor_values.append(floor)
 
-    names = TextSlotList.from_strings(sorted(name_values, key=len, reverse=True))
+    for numbered_group in numbered_devices.values():
+        for ordinal, (_, base_name, canonical_name) in zip(
+            _ORDINAL_WORDS,
+            sorted(numbered_group, key=lambda numbered_device: numbered_device[0]),
+        ):
+            name_values.append((f"{ordinal} {base_name}", canonical_name))
+
+    names = TextSlotList.from_tuples(
+        sorted(name_values, key=lambda name_value: len(name_value[0]), reverse=True),
+        allow_template=False,
+        name="name",
+    )
     areas = TextSlotList.from_strings(sorted(area_values, key=len, reverse=True))
     slot_lists: dict[str, Any] = {
         "name": names,
@@ -126,7 +147,11 @@ def _build_slot_lists(controllable_devices: list) -> dict[str, Any]:
         "floor": TextSlotList.from_strings(sorted(floor_values, key=len, reverse=True)),
     }
     slot_lists.update({
-        name: TextSlotList.from_strings(sorted(name_values, key=len, reverse=True))
+        name: TextSlotList.from_tuples(
+            sorted(name_values, key=lambda name_value: len(name_value[0]), reverse=True),
+            allow_template=False,
+            name=name,
+        )
         for name in ("timer_name",)
     })
     slot_lists.update({
