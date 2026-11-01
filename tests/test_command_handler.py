@@ -15,7 +15,7 @@ class TestHandleVoiceCommand:
     @patch("command_handler.parse_intent")
     @patch("command_handler.transcribe_audio")
     @patch("command_handler.record_utterance")
-    @patch("command_handler.fetch_ha_devices")  # Updated to match command_handler.py's import
+    @patch("command_handler.fetch_ha_devices")
     def test_scenario_successful_command_execution(
         self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse, mock_exec
     ):
@@ -173,7 +173,7 @@ class TestHandleVoiceCommand:
     @patch("command_handler.execute_ha_command")
     @patch("command_handler.transcribe_audio")
     @patch("command_handler.record_utterance")
-    @patch("command_handler.fetch_ha_devices")  # Updated to match command_handler.py's import
+    @patch("command_handler.fetch_ha_devices")
     def test_scenario_empty_audio_handling(
         self, mock_fetch_devices, mock_record, mock_transcribe, mock_exec
     ):

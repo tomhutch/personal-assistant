@@ -71,3 +71,4 @@ def transcribe_audio(audio_np: np.ndarray, prompt: str = "") -> str:
     except Exception as e:
         logger.error("❌ Error preparing audio for Whisper: %s", e)
         return ""
+

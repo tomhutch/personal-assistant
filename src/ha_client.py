@@ -178,3 +178,4 @@ def execute_ha_command(
     except requests.RequestException as e:
         logger.error("❌ Failed to execute Home Assistant command: %s", e)
         return False
+

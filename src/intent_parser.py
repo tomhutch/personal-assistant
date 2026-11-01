@@ -14,3 +14,5 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
 
     logger.debug("⚡ Parsing intent via AI strategy...")
     return parse_intent_ai(transcript, controllable_devices)
+
+

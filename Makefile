@@ -16,13 +16,13 @@ help:
 # Run the voice assistant.
 # Note: sudo is required to access the usb led.
 run:
-	sudo PYTHONPATH=. .venv/bin/python main.py
+	sudo PYTHONPATH=src .venv/bin/python src/main.py
 
 debug:
-	sudo LOG_LEVEL=DEBUG PYTHONUNBUFFERED=1 PYTHONPATH=. .venv/bin/python -u main.py
+	sudo LOG_LEVEL=DEBUG PYTHONUNBUFFERED=1 PYTHONPATH=src .venv/bin/python -u src/main.py
 
 test:
-	PYTHONPATH=. python -m pytest -v
+	python -m pytest -v
 
 # Ensure the local bin directory exists
 bin:

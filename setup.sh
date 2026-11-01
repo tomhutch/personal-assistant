@@ -34,8 +34,8 @@ if [ "$(id -u)" -eq 0 ]; then
     exit 1
 fi
 
-if [ ! -f main.py ] || [ ! -d systemd ]; then
-    echo "ERROR: $SCRIPT_DIR does not look like the personal-assistant repo (missing main.py or systemd/)." >&2
+if [ ! -f src/main.py ] || [ ! -d systemd ]; then
+    echo "ERROR: $SCRIPT_DIR does not look like the personal-assistant repo (missing src/main.py or systemd/)." >&2
     exit 1
 fi
 

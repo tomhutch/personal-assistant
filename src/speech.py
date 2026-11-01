@@ -123,3 +123,4 @@ def speak(text: str):
         dtype="float32",
     ) as stream:
         stream.write(audio.reshape(-1, 1))
+

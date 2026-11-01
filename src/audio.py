@@ -7,11 +7,11 @@ from collections import deque
 from openwakeword.model import Model
 from config import (
     SAMPLE_RATE,
-    COMMAND_MAX_DURATION, 
+    COMMAND_MAX_DURATION,
     COMMAND_SPEECH_MULTIPLIER,
     COMMAND_POST_SPEECH_WINDOW,
     WAKE_WORD_MODEL,
-    WAKE_WORD_THRESHOLD
+    WAKE_WORD_THRESHOLD,
 )
 
 logger = logging.getLogger(__name__)
@@ -171,3 +171,4 @@ class RollingAudioBuffer:
         with self.lock:
             self.buffer.clear()
             self.current_samples = 0
+

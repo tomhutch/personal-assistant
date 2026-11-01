@@ -20,6 +20,6 @@ pip install --no-cache-dir pyinstaller -r requirements.txt
 
 # Run PyInstaller
 echo "Running PyInstaller..."
-pyinstaller --onefile --name personal-assistant main.py
+pyinstaller --onefile --name personal-assistant --paths src src/main.py
 
 echo "=== Build complete! Binary is located at: ./dist/personal-assistant ==="

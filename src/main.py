@@ -80,3 +80,4 @@ if __name__ == "__main__":
         main_loop()
     except KeyboardInterrupt:
         logger.info("🛑 Assistant stopped cleanly.")
+

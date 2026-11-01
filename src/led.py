@@ -200,3 +200,4 @@ class LED:
     if self._thread.is_alive():
       self._thread.join()
     LED._instance = None
+

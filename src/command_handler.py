@@ -173,3 +173,4 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             led.set_state(AssistantState.FAILURE)
         _announce_problem("Sorry, something went wrong while handling that command.")
         raise
+

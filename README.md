@@ -118,7 +118,7 @@ Set `LED_ENABLED=false` if no USB LED device is available.
 
 Manually test different states with:
 ```
-.venv/bin/python led_manual_test.py success
+PYTHONPATH=src .venv/bin/python led_manual_test.py success
 ```
 
 ### Test

@@ -17,7 +17,7 @@ def make_devices(*specs):
     ]
 
 class TestFindInputDevice:
-    @patch("sounddevice.query_devices")
+    @patch("audio.sd.query_devices")
     def test_prefers_usb_input_device(self, mock_query):
         """Scenario: A USB input device is chosen even when other inputs exist first."""
         mock_query.return_value = make_devices(
@@ -27,7 +27,7 @@ class TestFindInputDevice:
         )
         assert find_input_device() == 1
 
-    @patch("sounddevice.query_devices")
+    @patch("audio.sd.query_devices")
     def test_skips_monitor_devices(self, mock_query):
         """Scenario: A .monitor device with input channels is skipped in favor of a true USB input."""
         mock_query.return_value = make_devices(
@@ -36,7 +36,7 @@ class TestFindInputDevice:
         )
         assert find_input_device() == 1
 
-    @patch("sounddevice.query_devices")
+    @patch("audio.sd.query_devices")
     def test_usb_without_inputs_is_skipped(self, mock_query):
         """Scenario: A USB device with no input channels is not selected; fallback picks the real input."""
         mock_query.return_value = make_devices(
@@ -45,7 +45,7 @@ class TestFindInputDevice:
         )
         assert find_input_device() == 1
 
-    @patch("sounddevice.query_devices")
+    @patch("audio.sd.query_devices")
     def test_fallback_skips_loopback_devices(self, mock_query):
         """Scenario: With no USB input, the first non-loopback input device wins."""
         mock_query.return_value = make_devices(
@@ -54,7 +54,7 @@ class TestFindInputDevice:
         )
         assert find_input_device() == 0
 
-    @patch("sounddevice.query_devices")
+    @patch("audio.sd.query_devices")
     def test_only_loopback_returns_none(self, mock_query):
         """Scenario: When only a virtual loopback is available, no device is returned."""
         mock_query.return_value = make_devices(
@@ -63,7 +63,7 @@ class TestFindInputDevice:
         )
         assert find_input_device() is None
 
-    @patch("sounddevice.query_devices")
+    @patch("audio.sd.query_devices")
     def test_no_input_devices_returns_none(self, mock_query):
         """Scenario: An output-only or empty device list yields None."""
         mock_query.return_value = make_devices(("Pulse Output", 0, 2))
@@ -72,7 +72,7 @@ class TestFindInputDevice:
         mock_query.return_value = []
         assert find_input_device() is None
 
-    @patch("sounddevice.query_devices")
+    @patch("audio.sd.query_devices")
     def test_query_failure_returns_none(self, mock_query):
         """Scenario: If PortAudio cannot be queried at all, None is returned instead of raising."""
         mock_query.side_effect = RuntimeError("PortAudio initialization failed")
@@ -138,7 +138,7 @@ class TestListenForWakeWord:
         assert triggered is False
 
 class TestRecordUtterance:
-    @patch("sounddevice.InputStream")
+    @patch("audio.sd.InputStream")
     def test_cancel_event_stops_recording_between_reads(self, mock_input_stream_cls):
         mock_stream = MagicMock()
         cancel_event = threading.Event()
@@ -157,7 +157,7 @@ class TestRecordUtterance:
         assert len(audio_result) == chunk_samples
         mock_stream.read.assert_called_once_with(chunk_samples)
 
-    @patch("sounddevice.InputStream")
+    @patch("audio.sd.InputStream")
     def test_scenario_continuous_music_noise_resilience(self, mock_input_stream_cls):
         """Scenario: Continuous background music keeps audio elevated, but fixed post-speech window terminates cleanly."""
         mock_stream = MagicMock()
@@ -177,7 +177,7 @@ class TestRecordUtterance:
             device=0, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
 
-    @patch("sounddevice.InputStream")
+    @patch("audio.sd.InputStream")
     def test_scenario_no_speech_timeout(self, mock_input_stream_cls):
         """Scenario: User triggers wake word but stays completely silent; recording times out safely."""
         mock_stream = MagicMock()
@@ -195,7 +195,7 @@ class TestRecordUtterance:
             device=0, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
 
-    @patch("sounddevice.InputStream")
+    @patch("audio.sd.InputStream")
     def test_scenario_no_input_device_aborts(self, mock_input_stream_cls):
         """Scenario: No usable input device exists; recording aborts with empty audio and no stream."""
         

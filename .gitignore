@@ -26,3 +26,4 @@ dist/
 /personal-assistant
 /build/personal-assistant/
 personal-assistant.spec
+bin/
