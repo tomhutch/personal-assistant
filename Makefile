@@ -35,6 +35,7 @@ bin:
 PLATFORM ?= linux/amd64
 
 binary:
+	git submodule update --init --recursive
 	docker build --platform $(PLATFORM) -f Dockerfile.builder -o ./bin .
 
 # Build, copy to service path, and restart systemd

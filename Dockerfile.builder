@@ -21,6 +21,10 @@ RUN python -c "import openwakeword.utils; openwakeword.utils.download_models()"
 # Copy the application source
 COPY . .
 
+# Fail early with a clear message if the git submodule wasn't checked out
+RUN test -d vendor/ohf-voice-intents/sentences/en \
+    || (echo "vendor/ohf-voice-intents is empty: run git submodule update --init" >&2; exit 1)
+
 # Bundle into a single executable, collecting all assets
 RUN pyinstaller --onefile --name personal-assistant \
     --collect-all openwakeword --collect-all piper \
