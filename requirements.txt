@@ -12,6 +12,8 @@ sounddevice==0.4.6
 # Supporting Utilities & Networking
 requests==2.31.0
 websocket-client==1.9.2
+hassil==3.12.1
+PyYAML==6.0.3
 tqdm==4.66.2
 websocket-client==1.9.2
 tqdm==4.66.2

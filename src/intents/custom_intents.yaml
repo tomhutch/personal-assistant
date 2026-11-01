@@ -1,0 +1,12 @@
+# Project-specific HassIL sentences are merged with the upstream corpus.
+# Uncomment and edit this example to add a custom turn-on phrase:
+#
+# language: en
+# intents:
+#   HassTurnOn:
+#     data:
+#       - sentences:
+#           - "illuminate [the] {name}"
+#         name_domains:
+#           - light
+#           - group

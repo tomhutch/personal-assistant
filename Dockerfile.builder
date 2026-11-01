@@ -24,7 +24,12 @@ COPY . .
 # Bundle into a single executable, collecting all assets
 RUN pyinstaller --onefile --name personal-assistant \
     --collect-all openwakeword --collect-all piper \
-    --collect-all libusb_package --paths src src/main.py
+    --collect-all libusb_package --paths src \
+    --add-data "src/intents/custom_intents.yaml:intents" \
+    --add-data "vendor/ohf-voice-intents/sentences/en:vendor/ohf-voice-intents/sentences/en" \
+    --add-data "vendor/ohf-voice-intents/rules/en:vendor/ohf-voice-intents/rules/en" \
+    --add-data "vendor/ohf-voice-intents/lists/en:vendor/ohf-voice-intents/lists/en" \
+    src/main.py
 
 # --- Stage 2: export artifact ---
 FROM scratch AS export

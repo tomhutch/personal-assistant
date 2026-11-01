@@ -1,7 +1,13 @@
 import pytest
 import json
+import ha_client
 from unittest.mock import patch, MagicMock
-from ha_client import _fetch_entity_areas, get_ha_devices, execute_ha_command
+from ha_client import (
+    _fetch_entity_areas,
+    execute_ha_command,
+    get_ha_devices,
+    process_ha_conversation,
+)
 
 class TestHomeAssistantClient:
     @patch("ha_client.websocket.create_connection")
@@ -11,6 +17,7 @@ class TestHomeAssistantClient:
         monkeypatch.setattr("ha_client.HA_URL", "http://ha.example:8123")
         monkeypatch.setattr("ha_client.HA_TOKEN", "test-token")
         monkeypatch.setattr("ha_client._area_cache", {})
+        monkeypatch.setattr("ha_client._entity_floors", {})
         monkeypatch.setattr("ha_client._area_cache_expires_at", 0)
         connection = MagicMock()
         connection.recv.side_effect = [
@@ -26,12 +33,19 @@ class TestHomeAssistantClient:
                 "id": 2,
                 "type": "result",
                 "success": True,
-                "result": [{"area_id": "living", "name": "Living Room"}],
+                "result": [{"area_id": "living", "name": "Living Room", "floor_id": "downstairs"}],
+            }),
+            json.dumps({
+                "id": 3,
+                "type": "result",
+                "success": True,
+                "result": [{"floor_id": "downstairs", "name": "Downstairs"}],
             }),
         ]
         mock_create_connection.return_value = connection
 
         assert _fetch_entity_areas() == {"light.living_room": "Living Room"}
+        assert ha_client._entity_floors == {"light.living_room": "Downstairs"}
         mock_create_connection.assert_called_once_with(
             "ws://ha.example:8123/api/websocket", timeout=2.0
         )
@@ -118,6 +132,65 @@ class TestHomeAssistantClient:
             "members": ["light.ceiling", "switch.lamp_plug"],
             "area": "Living Room",
         }]
+
+    @patch("ha_client._fetch_entity_areas", return_value={})
+    @patch("requests.get")
+    def test_fetch_includes_requested_conversation_entity_domains(self, mock_get, mock_areas):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {"entity_id": f"{domain}.sample", "attributes": {"friendly_name": domain}, "state": "unknown"}
+            for domain in ("media_player", "timer", "todo", "weather")
+        ]
+        mock_get.return_value = mock_response
+
+        devices = get_ha_devices()
+
+        assert [device["entity_id"] for device in devices] == [
+            "media_player.sample", "timer.sample", "todo.sample", "weather.sample"
+        ]
+
+    @patch("ha_client.websocket.create_connection")
+    def test_process_ha_conversation_returns_assistant_response(
+        self, mock_create_connection, monkeypatch
+    ):
+        monkeypatch.setattr("ha_client.HA_URL", "http://ha.example:8123")
+        monkeypatch.setattr("ha_client.HA_TOKEN", "test-token")
+        connection = MagicMock()
+        connection.recv.side_effect = [
+            json.dumps({"type": "auth_required"}),
+            json.dumps({"type": "auth_ok"}),
+            json.dumps({
+                "id": 3,
+                "type": "result",
+                "success": True,
+                "result": {
+                    "response": {
+                        "response": {
+                            "speech": {"plain": {"speech": "The weather is clear."}}
+                        }
+                    }
+                },
+            }),
+        ]
+        mock_create_connection.return_value = connection
+
+        response = process_ha_conversation("what is the weather like")
+
+        assert response["response"]["speech"]["plain"]["speech"] == "The weather is clear."
+        request = json.loads(connection.send.call_args_list[-1].args[0])
+        assert request == {
+            "id": 3,
+            "type": "call_service",
+            "domain": "conversation",
+            "service": "process",
+            "service_data": {
+                "text": "what is the weather like",
+                "language": "en",
+                "agent_id": "conversation.home_assistant",
+            },
+            "return_response": True,
+        }
 
     @patch("requests.post")
     def test_scenario_execute_command_success(self, mock_post):

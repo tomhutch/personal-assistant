@@ -11,6 +11,31 @@ class TestHandleVoiceCommand:
         monkeypatch.setattr("command_handler._announce_problem", self.announce_problem)
         return self.announce_problem
 
+    @patch("command_handler.speak")
+    @patch("command_handler.process_ha_conversation", create=True)
+    @patch("command_handler.parse_intent")
+    @patch("command_handler.transcribe_audio")
+    @patch("command_handler.record_utterance")
+    @patch("command_handler.fetch_ha_devices")
+    def test_conversation_intent_speaks_home_assistant_response(
+        self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse,
+        mock_process_conversation, mock_speak,
+    ):
+        mock_fetch_devices.return_value = []
+        mock_record.return_value = np.zeros(16000, dtype=np.float32)
+        mock_transcribe.return_value = "what is the weather like"
+        mock_parse.return_value = {"conversation_text": "what is the weather like"}
+        mock_process_conversation.return_value = {
+            "response": {
+                "speech": {"plain": {"speech": "The weather is clear."}}
+            }
+        }
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        mock_process_conversation.assert_called_once_with("what is the weather like")
+        mock_speak.assert_called_once_with("The weather is clear.")
+
     @patch("command_handler.execute_ha_command")
     @patch("command_handler.parse_intent")
     @patch("command_handler.transcribe_audio")

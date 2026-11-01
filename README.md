@@ -123,6 +123,17 @@ PYTHONPATH=src .venv/bin/python led_manual_test.py success
 
 ### Test
 
+Initialize the pinned OHF-Voice sentence corpus once after cloning:
+
+```bash
+git submodule update --init --recursive
+```
+
+The deterministic intent parser uses the English HassIL templates from
+`vendor/ohf-voice-intents`. Add project-specific templates in
+`src/intents/custom_intents.yaml`; its `intents`, `expansion_rules`, and `lists`
+sections are merged on top of the upstream data.
+
 ```bash
 make test
 ```

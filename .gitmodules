@@ -1,0 +1,3 @@
+[submodule "vendor/ohf-voice-intents"]
+	path = vendor/ohf-voice-intents
+	url = https://github.com/OHF-Voice/intents.git

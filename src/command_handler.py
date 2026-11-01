@@ -3,7 +3,7 @@ import threading
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from audio import record_utterance
 from transcriber import transcribe_audio
-from ha_client import fetch_ha_devices, execute_ha_command
+from ha_client import fetch_ha_devices, execute_ha_command, process_ha_conversation
 from intent_parser import parse_intent
 from led import AssistantState
 from speech import speak
@@ -137,6 +137,27 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             if led:
                 led.set_state(AssistantState.FAILURE)
             _announce_problem("Sorry, I couldn't contact the language model.")
+            return
+
+        if intent.get("conversation_text"):
+            conversation_result = process_ha_conversation(intent["conversation_text"])
+            speech_text = (
+                conversation_result.get("response", {})
+                .get("speech", {})
+                .get("plain", {})
+                .get("speech")
+                if conversation_result else None
+            )
+            if not speech_text:
+                logger.error("Home Assistant returned no speech for the recognized intent.")
+                if led:
+                    led.set_state(AssistantState.FAILURE)
+                _announce_problem("Sorry, I couldn't complete that request.")
+                return
+
+            speak(speech_text)
+            if led:
+                led.set_state(AssistantState.SUCCESS)
             return
 
         if intent and "domain" in intent and "service" in intent and "entity_id" in intent:

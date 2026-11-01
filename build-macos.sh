@@ -20,6 +20,11 @@ pip install --no-cache-dir pyinstaller -r requirements.txt
 
 # Run PyInstaller
 echo "Running PyInstaller..."
-pyinstaller --onefile --name personal-assistant --paths src src/main.py
+pyinstaller --onefile --name personal-assistant --paths src \
+    --add-data "src/intents/custom_intents.yaml:intents" \
+    --add-data "vendor/ohf-voice-intents/sentences/en:vendor/ohf-voice-intents/sentences/en" \
+    --add-data "vendor/ohf-voice-intents/rules/en:vendor/ohf-voice-intents/rules/en" \
+    --add-data "vendor/ohf-voice-intents/lists/en:vendor/ohf-voice-intents/lists/en" \
+    src/main.py
 
 echo "=== Build complete! Binary is located at: ./dist/personal-assistant ==="
