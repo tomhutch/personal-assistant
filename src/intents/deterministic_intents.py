@@ -115,6 +115,10 @@ def _build_slot_lists(controllable_devices: list) -> dict[str, Any]:
 
         for alias in dict.fromkeys(value for value in (name, entity_name) if value):
             name_values.append((alias, canonical_name))
+            if entity_id.startswith("todo."):
+                short_list_alias = re.sub(r"\s+list$", "", alias, flags=re.IGNORECASE).strip()
+                if short_list_alias and short_list_alias != alias:
+                    name_values.append((short_list_alias, canonical_name))
 
         numbered_name = re.fullmatch(r"(.+?)\s+(\d+)", canonical_name)
         if numbered_name:
@@ -360,6 +364,20 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
         return None
 
     intent_name = result.intent.name
+    if intent_name == "PersonalAssistantGetTodoItems":
+        name_entity = result.entities.get("name")
+        if not name_entity:
+            return None
+        device = _find_matching_device(
+            transcript, controllable_devices, name_entity.value
+        )
+        if not device or not (device_entity_id := device.get("entity_id", "")).startswith("todo."):
+            return None
+        return {
+            "todo_items_entity_id": device_entity_id,
+            "todo_list_name": device.get("name", device_entity_id),
+        }
+
     if intent_name not in {"HassTurnOn", "HassTurnOff", "HassLightSet"}:
         return {"conversation_text": transcript, "intent_name": intent_name}
 

@@ -3,7 +3,12 @@ import threading
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from audio import record_utterance
 from transcriber import transcribe_audio
-from ha_client import fetch_ha_devices, execute_ha_command, process_ha_conversation
+from ha_client import (
+    execute_ha_command,
+    fetch_ha_devices,
+    get_ha_todo_items,
+    process_ha_conversation,
+)
 from intent_parser import parse_intent
 from led import AssistantState
 from speech import speak
@@ -156,6 +161,36 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
                 return
 
             speak(speech_text)
+            if led:
+                led.set_state(AssistantState.SUCCESS)
+            return
+
+        if "todo_items_entity_id" in intent:
+            entity_id = intent["todo_items_entity_id"]
+            items = get_ha_todo_items(entity_id)
+            if items is None:
+                if led:
+                    led.set_state(AssistantState.FAILURE)
+                _announce_problem("Sorry, I couldn't read that to-do list.")
+                return
+
+            summaries = [
+                str(item["summary"])
+                for item in items
+                if item.get("status", "needs_action") == "needs_action"
+                and item.get("summary")
+            ]
+            list_name = intent.get("todo_list_name", "Your to-do list")
+            if not summaries:
+                response = f"{list_name} is empty."
+            else:
+                item_label = "item" if len(summaries) == 1 else "items"
+                response = (
+                    f"{list_name} has {len(summaries)} {item_label}: "
+                    f"{', '.join(summaries)}."
+                )
+
+            speak(response)
             if led:
                 led.set_state(AssistantState.SUCCESS)
             return

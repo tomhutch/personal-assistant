@@ -1,7 +1,15 @@
 # Project-specific HassIL sentences are merged with the upstream corpus.
-# Uncomment and edit this example to add a custom turn-on phrase:
-#
-# language: en
+language: en
+intents:
+  PersonalAssistantGetTodoItems:
+    data:
+      - sentences:
+          - "(what is|what's) on [the|my] {name} list"
+          - "show [me] [the|my] {name} list"
+        name_domains:
+          - todo
+
+# Example custom device template:
 # intents:
 #   HassTurnOn:
 #     data:

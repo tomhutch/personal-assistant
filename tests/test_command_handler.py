@@ -36,6 +36,62 @@ class TestHandleVoiceCommand:
         mock_process_conversation.assert_called_once_with("what is the weather like")
         mock_speak.assert_called_once_with("The weather is clear.")
 
+    @patch("command_handler.speak")
+    @patch("command_handler.get_ha_todo_items", create=True)
+    @patch("command_handler.parse_intent")
+    @patch("command_handler.transcribe_audio")
+    @patch("command_handler.record_utterance")
+    @patch("command_handler.fetch_ha_devices")
+    def test_todo_query_speaks_list_items(
+        self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse,
+        mock_get_items, mock_speak,
+    ):
+        mock_fetch_devices.return_value = [
+            {"entity_id": "todo.shopping_list", "name": "Shopping List"}
+        ]
+        mock_record.return_value = np.zeros(16000, dtype=np.float32)
+        mock_transcribe.return_value = "what's on the shopping list"
+        mock_parse.return_value = {
+            "todo_items_entity_id": "todo.shopping_list",
+            "todo_list_name": "Shopping List",
+        }
+        mock_get_items.return_value = [
+            {"summary": "Apples", "status": "needs_action"},
+            {"summary": "Bread", "status": "needs_action"},
+        ]
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        mock_get_items.assert_called_once_with("todo.shopping_list")
+        mock_speak.assert_called_once_with(
+            "Shopping List has 2 items: Apples, Bread."
+        )
+
+    @patch("command_handler.speak")
+    @patch("command_handler.get_ha_todo_items", create=True)
+    @patch("command_handler.parse_intent")
+    @patch("command_handler.transcribe_audio")
+    @patch("command_handler.record_utterance")
+    @patch("command_handler.fetch_ha_devices")
+    def test_todo_query_reports_empty_list(
+        self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse,
+        mock_get_items, mock_speak,
+    ):
+        mock_fetch_devices.return_value = [
+            {"entity_id": "todo.shopping_list", "name": "Shopping List"}
+        ]
+        mock_record.return_value = np.zeros(16000, dtype=np.float32)
+        mock_transcribe.return_value = "what is on my shopping list"
+        mock_parse.return_value = {
+            "todo_items_entity_id": "todo.shopping_list",
+            "todo_list_name": "Shopping List",
+        }
+        mock_get_items.return_value = []
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        mock_speak.assert_called_once_with("Shopping List is empty.")
+
     @patch("command_handler.execute_ha_command")
     @patch("command_handler.parse_intent")
     @patch("command_handler.transcribe_audio")

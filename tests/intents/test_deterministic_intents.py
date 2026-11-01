@@ -63,6 +63,23 @@ def test_requested_intent_families_delegate_to_home_assistant():
         }
 
 
+def test_custom_todo_query_resolves_named_shopping_list():
+    devices = [{"entity_id": "todo.shopping_list", "name": "Shopping List"}]
+
+    intent = parse_intent_deterministic("what's on the shopping list", devices)
+
+    assert intent == {
+        "todo_items_entity_id": "todo.shopping_list",
+        "todo_list_name": "Shopping List",
+    }
+
+
+def test_custom_todo_query_requires_the_word_list():
+    devices = [{"entity_id": "todo.shopping_list", "name": "Shopping List"}]
+
+    assert parse_intent_deterministic("what's on the shopping", devices) is None
+
+
 def test_deterministic_intent_turns_on_named_light():
     devices = [
         {"entity_id": "light.living_room", "name": "Living Room Light", "area": "Living Room"},

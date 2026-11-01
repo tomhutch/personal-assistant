@@ -83,6 +83,40 @@ def process_ha_conversation(text: str, language: str = "en") -> dict | None:
             connection.close()
 
 
+def get_ha_todo_items(entity_id: str) -> list[dict] | None:
+    """Return actionable items from a Home Assistant todo entity."""
+    if not entity_id.startswith("todo."):
+        logger.error("Refusing to fetch todo items for non-todo entity %s.", entity_id)
+        return None
+    if not HA_TOKEN:
+        logger.error("Cannot fetch todo items without a Home Assistant access token.")
+        return None
+
+    connection = None
+    try:
+        connection = _create_authenticated_websocket()
+        connection.send(json.dumps({
+            "id": 4,
+            "type": "call_service",
+            "domain": "todo",
+            "service": "get_items",
+            "target": {"entity_id": entity_id},
+            "service_data": {"status": ["needs_action"]},
+            "return_response": True,
+        }))
+        result = _websocket_result(connection, 4)
+        response = result.get("response", {}) if isinstance(result, dict) else {}
+        todo_list = response.get(entity_id, {}) if isinstance(response, dict) else {}
+        items = todo_list.get("items", []) if isinstance(todo_list, dict) else []
+        return [item for item in items if isinstance(item, dict)]
+    except Exception as exc:
+        logger.error("Failed to fetch Home Assistant todo items for %s: %s", entity_id, exc)
+        return None
+    finally:
+        if connection is not None:
+            connection.close()
+
+
 def _fetch_entity_areas():
     global _area_cache, _entity_floors, _area_cache_expires_at
 

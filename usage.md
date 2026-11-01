@@ -60,6 +60,11 @@ corpus for:
 | Remove item | “Remove take out the trash from my chores list.” |
 | Add shopping item | “Add apples to my shopping list.” |
 | Complete shopping item | “Check off apples from my shopping list.” |
+| Read a list | “What's on the shopping list?” |
+
+The custom read-list phrase requires the word “list” to avoid matching unrelated
+questions such as “what's on the shopping”. It reads actionable items from the
+matched todo entity.
 
 ### Weather
 

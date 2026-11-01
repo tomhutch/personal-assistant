@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from ha_client import (
     _fetch_entity_areas,
     execute_ha_command,
+    get_ha_todo_items,
     get_ha_devices,
     process_ha_conversation,
 )
@@ -191,6 +192,47 @@ class TestHomeAssistantClient:
             },
             "return_response": True,
         }
+
+    @patch("ha_client.websocket.create_connection")
+    def test_get_ha_todo_items_returns_actionable_items(
+        self, mock_create_connection, monkeypatch
+    ):
+        monkeypatch.setattr("ha_client.HA_URL", "http://ha.example:8123")
+        monkeypatch.setattr("ha_client.HA_TOKEN", "test-token")
+        connection = MagicMock()
+        connection.recv.side_effect = [
+            json.dumps({"type": "auth_required"}),
+            json.dumps({"type": "auth_ok"}),
+            json.dumps({
+                "id": 4,
+                "type": "result",
+                "success": True,
+                "result": {
+                    "response": {
+                        "todo.shopping_list": {
+                            "items": [
+                                {"summary": "Apples", "status": "needs_action"},
+                                {"summary": "Bread", "status": "needs_action"},
+                            ]
+                        }
+                    }
+                },
+            }),
+        ]
+        mock_create_connection.return_value = connection
+
+        items = get_ha_todo_items("todo.shopping_list")
+
+        assert items == [
+            {"summary": "Apples", "status": "needs_action"},
+            {"summary": "Bread", "status": "needs_action"},
+        ]
+        request = json.loads(connection.send.call_args_list[-1].args[0])
+        assert request["domain"] == "todo"
+        assert request["service"] == "get_items"
+        assert request["target"] == {"entity_id": "todo.shopping_list"}
+        assert request["service_data"] == {"status": ["needs_action"]}
+        assert request["return_response"] is True
 
     @patch("requests.post")
     def test_scenario_execute_command_success(self, mock_post):
