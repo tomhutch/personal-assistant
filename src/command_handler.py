@@ -142,7 +142,7 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             logger.error("❌ No intent could be parsed from the command.")
             if led:
                 led.set_state(AssistantState.FAILURE)
-            _announce_problem("Sorry, I couldn't contact the language model.")
+            _announce_problem("Sorry, I couldn't parse the command.")
             return
 
         if intent.get("conversation_text"):
