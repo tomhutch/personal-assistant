@@ -4,6 +4,21 @@ from unittest.mock import patch, MagicMock
 from intent_parser import parse_intent
 
 class TestParseIntent:
+    @patch("config.USE_DETERMINISTIC_INTENT", True)
+    def test_deterministic_strategy_matches_known_devices(self):
+        devices = [
+            {"entity_id": "light.living_room", "name": "Living Room Light", "area": "Living Room"},
+            {"entity_id": "switch.plug_1", "name": "Plug 1", "area": "Garage"},
+        ]
+
+        intent = parse_intent("turn on the living room light", devices)
+
+        assert intent == {
+            "domain": "light",
+            "service": "turn_on",
+            "entity_id": "light.living_room",
+        }
+
     @patch("requests.post", side_effect=requests.ConnectionError("connection refused"))
     def test_slm_connection_failure_returns_none(self, mock_post):
         assert parse_intent("turn on the light", []) is None

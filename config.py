@@ -20,7 +20,8 @@ COMMAND_SPEECH_MULTIPLIER = 1.8     # Multiplier above noise floor to detect spe
 COMMAND_POST_SPEECH_WINDOW = 2      # Fixed recording duration after speech starts (music-proof)
 
 # Intent Parsing
-SLM_TIMEOUT_SECONDS=10.0
+SLM_TIMEOUT_SECONDS = 10.0
+USE_DETERMINISTIC_INTENT = os.getenv("USE_DETERMINISTIC_INTENT", "false").strip().lower() not in {"", "0", "false", "no", "off"}
 
 # Read log level from environment variable, default to INFO if not set
 LOG_LEVEL_STR = os.getenv("LOG_LEVEL", "INFO").upper()
