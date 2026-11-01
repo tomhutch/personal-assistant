@@ -280,7 +280,7 @@ class TestHandleVoiceCommand:
 
         mock_exec.assert_not_called()
         mock_failure_announcement.assert_called_once_with(
-            "Sorry, I couldn't contact the language model."
+            "Sorry, I couldn't parse the command."
         )
         assert mock_led.set_state.call_args_list[-1].args[0] == AssistantState.FAILURE
 
