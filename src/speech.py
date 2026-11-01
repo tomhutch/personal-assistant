@@ -2,6 +2,8 @@ import logging
 import math
 import re
 import sys
+import time
+import wave
 from functools import lru_cache
 from pathlib import Path
 
@@ -124,3 +126,42 @@ def speak(text: str):
     ) as stream:
         stream.write(audio.reshape(-1, 1))
 
+
+
+def _chime_path() -> Path:
+    here = Path(__file__).resolve().parent
+    for candidate in (here / "sounds", here.parent / "sounds"):
+        if (candidate / "chime.wav").is_file():
+            return candidate / "chime.wav"
+    raise FileNotFoundError("sounds/chime.wav not found")
+
+
+def play_chime_until(stop_event, max_seconds: float = 60.0):
+    """Repeat the chime until stop_event is set or max_seconds elapses."""
+    with wave.open(str(_chime_path()), "rb") as wav:
+        channels, width, rate = wav.getnchannels(), wav.getsampwidth(), wav.getframerate()
+        frames = wav.readframes(wav.getnframes())
+    if width not in (1, 2, 4):
+        raise ValueError(f"Unsupported chime sample width: {width}")
+    dtype, scale = {1: (np.uint8, 128.0), 2: (np.int16, 32768.0), 4: (np.int32, 2147483648.0)}[width]
+    audio = np.frombuffer(frames, dtype=dtype).astype(np.float32)
+    if width == 1:
+        audio -= 128.0
+    audio = audio.reshape(-1, channels).mean(axis=1) / scale
+
+    output_index, output_device = _select_output_device()
+    output_rate = int(output_device["default_samplerate"])
+    audio = _resample_audio(audio, rate, output_rate).reshape(-1, 1)
+    block = max(1, output_rate // 10)
+    silence = np.zeros((output_rate, 1), dtype=np.float32)
+
+    deadline = time.monotonic() + max_seconds
+    with sd.OutputStream(
+        device=output_index, samplerate=output_rate, channels=1, dtype="float32"
+    ) as stream:
+        while not stop_event.is_set() and time.monotonic() < deadline:
+            for clip in (audio, silence):
+                for start in range(0, len(clip), block):
+                    if stop_event.is_set() or time.monotonic() >= deadline:
+                        return
+                    stream.write(clip[start:start + block])

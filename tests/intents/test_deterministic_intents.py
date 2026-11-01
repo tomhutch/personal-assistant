@@ -50,7 +50,6 @@ def test_requested_intent_families_delegate_to_home_assistant():
     cases = {
         "pause the living room speaker": "HassMediaPause",
         "turn on the living room speaker": "HassTurnOn",
-        "set a timer for five minutes": "HassStartTimer",
         "add apples to my shopping list": "HassListAddItem",
         "set the bedroom lamp color to red": "HassLightSet",
     }
@@ -60,6 +59,21 @@ def test_requested_intent_families_delegate_to_home_assistant():
             "conversation_text": transcript,
             "intent_name": expected_intent,
         }
+
+
+def test_timer_intents_are_handled_locally():
+    assert parse_intent_deterministic("set a timer for five minutes", []) == {
+        "timer_action": "HassStartTimer",
+        "timer_seconds": 300.0,
+    }
+    assert parse_intent_deterministic("cancel all timers", [])["timer_action"] == "HassCancelAllTimers"
+
+
+def test_timers_can_be_targeted_by_number_or_duration():
+    for transcript in ("cancel the first timer", "cancel timer one", "cancel timer number 1"):
+        assert parse_intent_deterministic(transcript, [])["timer_number"] == 1
+    assert parse_intent_deterministic("pause the second timer", [])["timer_number"] == 2
+    assert parse_intent_deterministic("cancel the 10 minute timer", [])["timer_start_seconds"] == 600.0
 
 
 def test_generic_weather_query_uses_a_discovered_weather_entity():

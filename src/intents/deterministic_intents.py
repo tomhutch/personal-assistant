@@ -20,6 +20,18 @@ _SUPPORTED_ENTITY_DOMAINS = {
     "todo",
     "weather",
 }
+# Home Assistant refuses timer intents from clients that aren't voice satellites,
+# so timers are run locally instead of via conversation.process.
+_LOCAL_TIMER_INTENTS = {
+    "HassStartTimer",
+    "HassCancelTimer",
+    "HassCancelAllTimers",
+    "HassIncreaseTimer",
+    "HassDecreaseTimer",
+    "HassPauseTimer",
+    "HassUnpauseTimer",
+    "HassTimerStatus",
+}
 _CUSTOM_INTENTS_FILE = Path(__file__).with_name("custom_intents.yaml")
 _OHF_INTENT_FAMILIES = (
     "HassTurnOn",
@@ -51,6 +63,7 @@ _OHF_INTENT_FAMILIES = (
 )
 _DYNAMIC_SLOT_LISTS = {
     "name",
+    "ordinal",
     "area",
     "floor",
     "brightness",
@@ -71,6 +84,21 @@ _ORDINAL_WORDS = (
     "first", "second", "third", "fourth", "fifth",
     "sixth", "seventh", "eighth", "ninth", "tenth",
 )
+_CARDINAL_WORDS = (
+    "one", "two", "three", "four", "five",
+    "six", "seven", "eight", "nine", "ten",
+)
+
+
+def _ordinal_values() -> list[tuple[str, int]]:
+    """Spoken and digit forms ("first", "one", "1st", "1") mapped to their number."""
+    values = []
+    for number, (ordinal, cardinal) in enumerate(zip(_ORDINAL_WORDS, _CARDINAL_WORDS), 1):
+        suffix = "th" if 10 <= number % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
+        values.extend(
+            (form, number) for form in (ordinal, cardinal, str(number), f"{number}{suffix}")
+        )
+    return values
 
 
 def _find_ohf_intents_root() -> Path:
@@ -158,6 +186,9 @@ def _build_slot_lists(controllable_devices: list) -> dict[str, Any]:
         )
         for name in ("timer_name",)
     })
+    slot_lists["ordinal"] = TextSlotList.from_tuples(
+        _ordinal_values(), allow_template=False, name="ordinal"
+    )
     slot_lists.update({
         name: WildcardSlotList(name)
         for name in (
@@ -360,6 +391,26 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
         return None
 
     intent_name = result.intent.name
+    if intent_name in _LOCAL_TIMER_INTENTS:
+        seconds = sum(
+            float(result.entities[slot].value) * factor
+            for slot, factor in (("hours", 3600), ("minutes", 60), ("seconds", 1))
+            if slot in result.entities
+        )
+        timer = {"timer_action": intent_name, "timer_seconds": seconds}
+        if number_entity := result.entities.get("timer_number"):
+            timer["timer_number"] = int(number_entity.value)
+        start_seconds = sum(
+            float(result.entities[slot].value) * factor
+            for slot, factor in (("start_hours", 3600), ("start_minutes", 60), ("start_seconds", 1))
+            if slot in result.entities
+        )
+        if start_seconds:
+            timer["timer_start_seconds"] = start_seconds
+        if name_entity := result.entities.get("name"):
+            timer["timer_name"] = str(name_entity.value)
+        return timer
+
     if intent_name == "HassGetWeather":
         name_entity = result.entities.get("name")
         weather_devices = [

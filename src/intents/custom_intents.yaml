@@ -1,4 +1,29 @@
 # Project-specific HassIL sentences are merged with the upstream corpus.
+#
+# Slot lists available to templates (built in deterministic_intents.py):
+#   Device data, discovered from Home Assistant at runtime:
+#     {name}   device/entity names and aliases, plus "first lamp"-style names for
+#              devices called "Lamp 1", "Lamp 2". Restrict with `name_domains`.
+#     {area}   area names
+#     {floor}  floor names
+#   Numeric ranges:
+#     {brightness} 1-100 %          {color_temperature} 1000-10000
+#     {volume} 0-100 %              {volume_step_up} / {volume_step_down} 1-100 %
+#     {timer_hours} 0-999           {timer_minutes} / {timer_seconds} 0-59
+#   Spoken numbers:
+#     {ordinal}  first..tenth, one..ten, 1st..10th and digits, all mapped to 1-10
+#                e.g. {ordinal:timer_number}
+#   Free text (wildcards):
+#     {search_query} {shopping_list_item} {todo_list_item} {timer_command}
+#   Timers:
+#     {timer_name}  names of timer.* devices
+#   Plus every list and expansion rule (<timer_cancel>, <the>, ...) defined in
+#   vendor/ohf-voice-intents/lists/en and rules/en.
+#
+# Slots a template captures (e.g. {ordinal:timer_number}) are only acted on if
+# deterministic_intents.py / timers.py read them. A sentence that uses a list that
+# isn't available is silently dropped. Dynamic lists must also be in
+# _DYNAMIC_SLOT_LISTS.
 language: en
 intents:
   PersonalAssistantGetTodoItems:
@@ -8,6 +33,38 @@ intents:
           - "show [me] [the|my] {name} list"
         name_domains:
           - todo
+  HassCancelTimer:
+    data:
+      - sentences:
+          - "<timer_cancel> [the|my] {ordinal:timer_number} timer"
+          - "<timer_cancel> [the|my] timer [number] {ordinal:timer_number}"
+  HassPauseTimer:
+    data:
+      - sentences:
+          - "pause [the|my] {ordinal:timer_number} timer"
+          - "pause [the|my] timer [number] {ordinal:timer_number}"
+  HassUnpauseTimer:
+    data:
+      - sentences:
+          - "(resume|continue) [the|my] {ordinal:timer_number} timer"
+          - "(resume|continue) [the|my] timer [number] {ordinal:timer_number}"
+  HassTimerStatus:
+    data:
+      - sentences:
+          - "(how long|how much time) [is] left on [the|my] {ordinal:timer_number} timer"
+          - "(how long|how much time) [is] left on [the|my] timer [number] {ordinal:timer_number}"
+          - "status of [the|my] {ordinal:timer_number} timer"
+          - "status of [the|my] timer [number] {ordinal:timer_number}"
+  HassIncreaseTimer:
+    data:
+      - sentences:
+          - "add {timer_minutes:minutes}( |-)minute[s] to [the|my] {ordinal:timer_number} timer"
+          - "add {timer_minutes:minutes}( |-)minute[s] to [the|my] timer [number] {ordinal:timer_number}"
+  HassDecreaseTimer:
+    data:
+      - sentences:
+          - "<timer_remove> {timer_minutes:minutes}( |-)minute[s] from [the|my] {ordinal:timer_number} timer"
+          - "<timer_remove> {timer_minutes:minutes}( |-)minute[s] from [the|my] timer [number] {ordinal:timer_number}"
 
 # Example custom device template:
 # intents:

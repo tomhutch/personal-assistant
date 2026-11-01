@@ -30,6 +30,7 @@ RUN pyinstaller --onefile --name personal-assistant \
     --collect-all openwakeword --collect-all piper \
     --collect-all libusb_package --paths src \
     --add-data "src/intents/custom_intents.yaml:intents" \
+    --add-data "sounds:sounds" \
     --add-data "vendor/ohf-voice-intents/sentences/en:vendor/ohf-voice-intents/sentences/en" \
     --add-data "vendor/ohf-voice-intents/rules/en:vendor/ohf-voice-intents/rules/en" \
     --add-data "vendor/ohf-voice-intents/lists/en:vendor/ohf-voice-intents/lists/en" \

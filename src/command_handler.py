@@ -13,6 +13,7 @@ from ha_client import (
 from intent_parser import parse_intent
 from led import AssistantState
 from speech import speak
+from timers import handle_timer_intent, is_stop_command, stop_alarm
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,12 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             _announce_problem("Sorry, I couldn't understand that.")
             return
 
+        if is_stop_command(transcript):
+            stop_alarm()
+            if led:
+                led.set_state(AssistantState.SUCCESS)
+            return
+
         logger.debug("🧠 Parsing intent...")
         intent = parse_intent(transcript, controllable_devices)
 
@@ -143,6 +150,12 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             if led:
                 led.set_state(AssistantState.FAILURE)
             _announce_problem("Sorry, I couldn't parse the command.")
+            return
+
+        if "timer_action" in intent:
+            speak(handle_timer_intent(intent))
+            if led:
+                led.set_state(AssistantState.SUCCESS)
             return
 
         if intent.get("conversation_text"):
