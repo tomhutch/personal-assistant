@@ -16,10 +16,10 @@ help:
 # Run the voice assistant.
 # Note: sudo is required to access the usb led.
 run:
-	sudo PYTHONPATH=src .venv/bin/python src/main.py
+	sudo sh -c 'set -a; [ ! -f .env ] || . ./.env; set +a; exec env PYTHONPATH=src .venv/bin/python src/main.py'
 
 debug:
-	sudo LOG_LEVEL=DEBUG PYTHONUNBUFFERED=1 PYTHONPATH=src .venv/bin/python -u src/main.py
+	sudo sh -c 'set -a; [ ! -f .env ] || . ./.env; set +a; exec env LOG_LEVEL=DEBUG PYTHONUNBUFFERED=1 PYTHONPATH=src .venv/bin/python -u src/main.py'
 
 test:
 	python -m pytest -v
