@@ -117,6 +117,40 @@ def get_ha_todo_items(entity_id: str) -> list[dict] | None:
             connection.close()
 
 
+def get_ha_weather_forecast(entity_id: str) -> dict | None:
+    """Return today's forecast from a Home Assistant weather entity."""
+    if not entity_id.startswith("weather."):
+        logger.error("Refusing to fetch weather forecast for non-weather entity %s.", entity_id)
+        return None
+    if not HA_TOKEN:
+        logger.error("Cannot fetch weather forecast without a Home Assistant access token.")
+        return None
+
+    connection = None
+    try:
+        connection = _create_authenticated_websocket()
+        connection.send(json.dumps({
+            "id": 5,
+            "type": "call_service",
+            "domain": "weather",
+            "service": "get_forecasts",
+            "target": {"entity_id": entity_id},
+            "service_data": {"type": "daily"},
+            "return_response": True,
+        }))
+        result = _websocket_result(connection, 5)
+        response = result.get("response", {}) if isinstance(result, dict) else {}
+        weather_data = response.get(entity_id, {}) if isinstance(response, dict) else {}
+        forecasts = weather_data.get("forecast", []) if isinstance(weather_data, dict) else []
+        return forecasts[0] if forecasts and isinstance(forecasts[0], dict) else None
+    except Exception as exc:
+        logger.error("Failed to fetch Home Assistant weather forecast for %s: %s", entity_id, exc)
+        return None
+    finally:
+        if connection is not None:
+            connection.close()
+
+
 def _fetch_entity_areas():
     global _area_cache, _entity_floors, _area_cache_expires_at
 
@@ -217,6 +251,8 @@ def fetch_ha_devices():
                 device["area"] = area
             if floor := _entity_floors.get(entity_id):
                 device["floor"] = floor
+            if entity_id.startswith("weather."):
+                device["temperature_unit"] = attributes.get("temperature_unit")
             controllable.append(device)
 
     device_summary = [f"{d['name']} ({d['entity_id']}): {d['state']}" for d in controllable]

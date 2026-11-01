@@ -331,10 +331,6 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
     """
     Deterministic parser using HassIL with dynamic name/area slots.
     """
-    if not controllable_devices:
-        logger.debug("Deterministic parser received no controllable devices.")
-        return None
-
     intents = _load_intents()
     slot_lists = _build_slot_lists(controllable_devices)
     try:
@@ -364,6 +360,27 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
         return None
 
     intent_name = result.intent.name
+    if intent_name == "HassGetWeather":
+        name_entity = result.entities.get("name")
+        weather_devices = [
+            device for device in controllable_devices
+            if (device.get("entity_id") or "").startswith("weather.")
+        ]
+        weather_device = (
+            _find_matching_device(transcript, weather_devices, name_entity.value)
+            if name_entity else (weather_devices[0] if weather_devices else None)
+        )
+        if weather_device:
+            weather_intent = {
+                "weather_entity_id": weather_device["entity_id"],
+                "weather_name": weather_device.get("name", weather_device["entity_id"]),
+            }
+            if temperature_unit := weather_device.get("temperature_unit"):
+                weather_intent["temperature_unit"] = temperature_unit
+            return weather_intent
+
+        return {"conversation_text": transcript, "intent_name": intent_name}
+
     if intent_name == "PersonalAssistantGetTodoItems":
         name_entity = result.entities.get("name")
         if not name_entity:

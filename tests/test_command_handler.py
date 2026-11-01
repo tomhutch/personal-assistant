@@ -37,6 +37,39 @@ class TestHandleVoiceCommand:
         mock_speak.assert_called_once_with("The weather is clear.")
 
     @patch("command_handler.speak")
+    @patch("command_handler.get_ha_weather_forecast", create=True)
+    @patch("command_handler.parse_intent")
+    @patch("command_handler.transcribe_audio")
+    @patch("command_handler.record_utterance")
+    @patch("command_handler.fetch_ha_devices")
+    def test_weather_query_speaks_daily_forecast(
+        self, mock_fetch_devices, mock_record, mock_transcribe, mock_parse,
+        mock_get_forecast, mock_speak,
+    ):
+        mock_fetch_devices.return_value = [
+            {"entity_id": "weather.forecast_home", "name": "Home"}
+        ]
+        mock_record.return_value = np.zeros(16000, dtype=np.float32)
+        mock_transcribe.return_value = "What's the weather?"
+        mock_parse.return_value = {
+            "weather_entity_id": "weather.forecast_home",
+            "weather_name": "Home",
+        }
+        mock_get_forecast.return_value = {
+            "condition": "sunny",
+            "temperature": 20,
+            "templow": 10,
+            "temperature_unit": "°C",
+        }
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        mock_get_forecast.assert_called_once_with("weather.forecast_home")
+        mock_speak.assert_called_once_with(
+            "Today's forecast for Home is sunny, high 20 °C and low 10 °C."
+        )
+
+    @patch("command_handler.speak")
     @patch("command_handler.get_ha_todo_items", create=True)
     @patch("command_handler.parse_intent")
     @patch("command_handler.transcribe_audio")

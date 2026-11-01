@@ -70,7 +70,7 @@ matched todo entity.
 
 | Intent | Example |
 | --- | --- |
-| Get weather | “What is the weather like in London?” |
+| Get weather | “What is the weather like in London?” or “What’s the weather?” |
 
 The parser uses discovered entity names, areas, and floors as slots. Templates
 requiring unavailable slots or unsupported entity domains are skipped.

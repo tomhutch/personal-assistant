@@ -7,6 +7,7 @@ from ha_client import (
     execute_ha_command,
     get_ha_todo_items,
     get_ha_devices,
+    get_ha_weather_forecast,
     process_ha_conversation,
 )
 
@@ -143,6 +144,7 @@ class TestHomeAssistantClient:
             {"entity_id": f"{domain}.sample", "attributes": {"friendly_name": domain}, "state": "unknown"}
             for domain in ("media_player", "timer", "todo", "weather")
         ]
+        mock_response.json.return_value[-1]["attributes"]["temperature_unit"] = "°C"
         mock_get.return_value = mock_response
 
         devices = get_ha_devices()
@@ -150,6 +152,7 @@ class TestHomeAssistantClient:
         assert [device["entity_id"] for device in devices] == [
             "media_player.sample", "timer.sample", "todo.sample", "weather.sample"
         ]
+        assert devices[-1]["temperature_unit"] == "°C"
 
     @patch("ha_client.websocket.create_connection")
     def test_process_ha_conversation_returns_assistant_response(
@@ -232,6 +235,49 @@ class TestHomeAssistantClient:
         assert request["service"] == "get_items"
         assert request["target"] == {"entity_id": "todo.shopping_list"}
         assert request["service_data"] == {"status": ["needs_action"]}
+        assert request["return_response"] is True
+
+    @patch("ha_client.websocket.create_connection")
+    def test_get_ha_weather_forecast_calls_daily_weather_service(
+        self, mock_create_connection, monkeypatch
+    ):
+        monkeypatch.setattr("ha_client.HA_URL", "http://ha.example:8123")
+        monkeypatch.setattr("ha_client.HA_TOKEN", "test-token")
+        connection = MagicMock()
+        connection.recv.side_effect = [
+            json.dumps({"type": "auth_required"}),
+            json.dumps({"type": "auth_ok"}),
+            json.dumps({
+                "id": 5,
+                "type": "result",
+                "success": True,
+                "result": {
+                    "response": {
+                        "weather.forecast_home": {
+                            "forecast": [{
+                                "condition": "sunny",
+                                "temperature": 20,
+                                "templow": 10,
+                            }]
+                        }
+                    }
+                },
+            }),
+        ]
+        mock_create_connection.return_value = connection
+
+        forecast = get_ha_weather_forecast("weather.forecast_home")
+
+        assert forecast == {
+            "condition": "sunny",
+            "temperature": 20,
+            "templow": 10,
+        }
+        request = json.loads(connection.send.call_args_list[-1].args[0])
+        assert request["domain"] == "weather"
+        assert request["service"] == "get_forecasts"
+        assert request["target"] == {"entity_id": "weather.forecast_home"}
+        assert request["service_data"] == {"type": "daily"}
         assert request["return_response"] is True
 
     @patch("requests.post")

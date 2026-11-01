@@ -45,14 +45,13 @@ def test_requested_intent_families_delegate_to_home_assistant():
         {"entity_id": "media_player.living_room", "name": "Living Room Speaker", "area": "Living Room"},
         {"entity_id": "timer.kitchen", "name": "Kitchen Timer", "area": "Kitchen"},
         {"entity_id": "todo.shopping_list", "name": "Shopping List"},
-        {"entity_id": "weather.home", "name": "Home"},
+        {"entity_id": "weather.forecast_home", "name": "Home"},
     ]
     cases = {
         "pause the living room speaker": "HassMediaPause",
         "turn on the living room speaker": "HassTurnOn",
         "set a timer for five minutes": "HassStartTimer",
         "add apples to my shopping list": "HassListAddItem",
-        "what is the weather like": "HassGetWeather",
         "set the bedroom lamp color to red": "HassLightSet",
     }
 
@@ -61,6 +60,27 @@ def test_requested_intent_families_delegate_to_home_assistant():
             "conversation_text": transcript,
             "intent_name": expected_intent,
         }
+
+
+def test_generic_weather_query_uses_a_discovered_weather_entity():
+    devices = [
+        {"entity_id": "weather.forecast_home", "name": "Home"},
+        {"entity_id": "light.kitchen", "name": "Kitchen Light"},
+    ]
+
+    assert parse_intent_deterministic("What's the weather?", devices) == {
+        "weather_entity_id": "weather.forecast_home",
+        "weather_name": "Home",
+    }
+
+
+def test_weather_intent_matches_without_discovered_devices():
+    transcript = "What's the weather?"
+
+    assert parse_intent_deterministic(transcript, []) == {
+        "conversation_text": transcript,
+        "intent_name": "HassGetWeather",
+    }
 
 
 def test_custom_todo_query_resolves_named_shopping_list():

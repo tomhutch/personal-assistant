@@ -7,6 +7,7 @@ from ha_client import (
     execute_ha_command,
     fetch_ha_devices,
     get_ha_todo_items,
+    get_ha_weather_forecast,
     process_ha_conversation,
 )
 from intent_parser import parse_intent
@@ -131,14 +132,14 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             _announce_problem("Sorry, I couldn't understand that.")
             return
 
-        logger.debug("🧠 Parsing intent with Qwen SLM...")
+        logger.debug("🧠 Parsing intent...")
         intent = parse_intent(transcript, controllable_devices)
 
         if shutdown_event and shutdown_event.is_set():
             return
 
         if intent is None:
-            logger.error("❌ Qwen SLM is unavailable; cannot parse the command.")
+            logger.error("❌ No intent could be parsed from the command.")
             if led:
                 led.set_state(AssistantState.FAILURE)
             _announce_problem("Sorry, I couldn't contact the language model.")
@@ -161,6 +162,40 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
                 return
 
             speak(speech_text)
+            if led:
+                led.set_state(AssistantState.SUCCESS)
+            return
+
+        if "weather_entity_id" in intent:
+            forecast = get_ha_weather_forecast(intent["weather_entity_id"])
+            if not forecast:
+                if led:
+                    led.set_state(AssistantState.FAILURE)
+                _announce_problem("Sorry, I couldn't get the weather forecast.")
+                return
+
+            condition = str(forecast.get("condition", "unknown"))
+            condition = {
+                "clear-night": "clear at night",
+                "partlycloudy": "partly cloudy",
+                "lightning-rainy": "thunderstorms and rain",
+                "snowy-rainy": "snow and rain",
+                "windy-variant": "windy and cloudy",
+            }.get(condition, condition.replace("-", " ").replace("_", " "))
+            response = (
+                f"Today's forecast for {intent.get('weather_name', 'your area')} "
+                f"is {condition}"
+            )
+            unit = intent.get("temperature_unit") or forecast.get("temperature_unit")
+            high = forecast.get("temperature")
+            low = forecast.get("templow")
+            if high is not None and low is not None and unit:
+                response += f", high {high} {unit} and low {low} {unit}"
+            elif high is not None and unit:
+                response += f", around {high} {unit}"
+            response += "."
+
+            speak(response)
             if led:
                 led.set_state(AssistantState.SUCCESS)
             return
