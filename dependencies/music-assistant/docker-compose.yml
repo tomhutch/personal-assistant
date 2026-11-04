@@ -1,0 +1,14 @@
+services:
+  music-assistant-server:
+    image: ghcr.io/music-assistant/server:latest
+    container_name: music-assistant-server
+    restart: unless-stopped
+    # Host networking is required for MA to discover and stream to players.
+    network_mode: host
+    volumes:
+      - ${MA_DATA_DIR:-${HOME}/docker/music-assistant-server/data}:/data/
+      # Optional: expose local music read-only.
+      # - /path/to/your/music:/media:ro
+    environment:
+      # critical, error, warning, info, debug
+      - LOG_LEVEL=${MA_LOG_LEVEL:-info}
