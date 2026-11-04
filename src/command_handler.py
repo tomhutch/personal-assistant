@@ -8,11 +8,14 @@ from ha_client import (
     fetch_ha_devices,
     get_ha_todo_items,
     get_ha_weather_forecast,
+    play_ha_media,
     process_ha_conversation,
 )
 from intent_parser import parse_intent
+from intents.deterministic_intents import _find_matching_device
 from led import AssistantState
 from speech import speak
+from spotify_search import SpotifySearchError, find_spotify_media
 from timers import handle_timer_intent, is_stop_command, stop_alarm
 
 logger = logging.getLogger(__name__)
@@ -22,6 +25,50 @@ def _announce_problem(message):
         speak(message)
     except Exception:
         logger.exception("Could not play spoken failure message.")
+
+def _media_search_unsupported(conversation_result) -> bool:
+    response = (conversation_result or {}).get("response", {})
+    return (
+        response.get("response_type") == "error"
+        and (response.get("data") or {}).get("code") == "failed_to_handle"
+    )
+
+def _play_via_spotify_search(intent, controllable_devices, led):
+    """Search Spotify and have the Home Assistant media player play the result."""
+    def fail(message):
+        if led:
+            led.set_state(AssistantState.FAILURE)
+        _announce_problem(message)
+
+    players = [
+        device for device in controllable_devices or []
+        if (device.get("entity_id") or "").startswith("media_player.")
+    ]
+    player = None
+    if name := intent.get("media_player_name"):
+        player = _find_matching_device(
+            intent["conversation_text"], players, name
+        )
+    elif len(players) == 1:
+        player = players[0]
+    if not player:
+        fail("I couldn't tell which speaker to play on.")
+        return
+
+    try:
+        uri, media_type, title = find_spotify_media(intent["media_search_query"])
+    except SpotifySearchError as exc:
+        logger.warning("Spotify search failed: %s", exc)
+        fail(str(exc))
+        return
+
+    if not play_ha_media(player["entity_id"], uri, media_type):
+        fail("Sorry, I couldn't start playback.")
+        return
+
+    speak(f"Playing {title} on {player.get('name', 'your speaker')}.")
+    if led:
+        led.set_state(AssistantState.SUCCESS)
 
 def _run_named_task(name, function, *args):
     try:
@@ -160,6 +207,10 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
 
         if intent.get("conversation_text"):
             conversation_result = process_ha_conversation(intent["conversation_text"])
+            if intent.get("media_search_query") and _media_search_unsupported(conversation_result):
+                logger.info("Home Assistant can't search media; falling back to Spotify search.")
+                _play_via_spotify_search(intent, controllable_devices, led)
+                return
             speech_text = (
                 conversation_result.get("response", {})
                 .get("speech", {})

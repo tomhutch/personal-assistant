@@ -305,3 +305,56 @@ class TestHandleVoiceCommand:
             AssistantState.LISTENING,
             AssistantState.FAILURE,
         ]
+
+class TestMediaSearchFallback:
+    @pytest.fixture(autouse=True)
+    def patches(self, monkeypatch):
+        self.speak = MagicMock()
+        self.find = MagicMock(return_value=("spotify:track:1", "track", "Thunderstruck"))
+        self.play = MagicMock(return_value=True)
+        self.announce = MagicMock()
+        monkeypatch.setattr("command_handler.speak", self.speak)
+        monkeypatch.setattr("command_handler.find_spotify_media", self.find)
+        monkeypatch.setattr("command_handler.play_ha_media", self.play)
+        monkeypatch.setattr("command_handler._announce_problem", self.announce)
+        monkeypatch.setattr("command_handler.record_utterance", lambda *a, **k: np.zeros(16000, dtype=np.float32))
+        monkeypatch.setattr("command_handler.transcribe_audio", lambda *a, **k: "play Thunderstruck on Sonos")
+        monkeypatch.setattr("command_handler.fetch_ha_devices", lambda: [
+            {"entity_id": "media_player.kitchen_kitchen", "name": "Sonos"}
+        ])
+        monkeypatch.setattr("command_handler.parse_intent", lambda *a: {
+            "conversation_text": "play Thunderstruck on Sonos",
+            "media_search_query": "Thunderstruck",
+            "media_player_name": "Sonos",
+        })
+
+    def test_falls_back_to_spotify_when_home_assistant_cannot_search(self, monkeypatch):
+        monkeypatch.setattr("command_handler.process_ha_conversation", lambda text: {
+            "response": {"response_type": "error", "data": {"code": "failed_to_handle"}}
+        })
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        self.find.assert_called_once_with("Thunderstruck")
+        self.play.assert_called_once_with("media_player.kitchen_kitchen", "spotify:track:1", "track")
+        self.speak.assert_called_once_with("Playing Thunderstruck on Sonos.")
+
+    def test_home_assistant_success_skips_spotify(self, monkeypatch):
+        monkeypatch.setattr("command_handler.process_ha_conversation", lambda text: {
+            "response": {"response_type": "action_done", "speech": {"plain": {"speech": "Playing"}}}
+        })
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        self.find.assert_not_called()
+        self.speak.assert_called_once_with("Playing")
+
+    def test_playback_failure_is_announced(self, monkeypatch):
+        monkeypatch.setattr("command_handler.process_ha_conversation", lambda text: {
+            "response": {"response_type": "error", "data": {"code": "failed_to_handle"}}
+        })
+        self.play.return_value = False
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        self.announce.assert_called_once_with("Sorry, I couldn't start playback.")

@@ -446,6 +446,14 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
             "todo_list_name": device.get("name", device_entity_id),
         }
 
+    if intent_name == "HassMediaSearchAndPlay":
+        intent = {"conversation_text": transcript, "intent_name": intent_name}
+        if search_entity := result.entities.get("search_query"):
+            intent["media_search_query"] = str(search_entity.value).strip()
+        if name_entity := result.entities.get("name"):
+            intent["media_player_name"] = str(name_entity.value)
+        return intent
+
     if intent_name not in {"HassTurnOn", "HassTurnOff", "HassLightSet"}:
         return {"conversation_text": transcript, "intent_name": intent_name}
 

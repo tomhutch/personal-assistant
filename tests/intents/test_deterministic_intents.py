@@ -254,3 +254,14 @@ def test_deterministic_intent_uses_floor_to_disambiguate_devices():
         "service": "turn_on",
         "entity_id": "light.bedroom_upstairs",
     }
+
+
+def test_media_search_intent_exposes_query_and_player_name():
+    devices = [{"entity_id": "media_player.kitchen_kitchen", "name": "Sonos"}]
+
+    intent = parse_intent_deterministic("play Thunderstruck on Sonos", devices)
+
+    assert intent["intent_name"] == "HassMediaSearchAndPlay"
+    assert intent["media_search_query"] == "Thunderstruck"
+    assert intent["media_player_name"] == "Sonos"
+    assert intent["conversation_text"] == "play Thunderstruck on Sonos"

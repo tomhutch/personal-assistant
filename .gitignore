@@ -27,3 +27,5 @@ dist/
 /build/personal-assistant/
 personal-assistant.spec
 bin/
+# Local secrets
+.cache

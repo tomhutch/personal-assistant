@@ -209,7 +209,18 @@ systemd via `EnvironmentFile=/home/ubuntu/personal-assistant/.env`:
 | `SLM_URL`     | `http://localhost:8080/v1/chat/completions` | Full Qwen SLM endpoint (the instructions' `LLAMA_URL`) |
 | `HA_URL`      | `http://localhost:8123`          | Home Assistant base URL                  |
 | `HA_TOKEN`    | *(empty)*                        | Home Assistant long-lived access token   |
+| `SPOTIPY_CLIENT_ID` / `SPOTIPY_CLIENT_SECRET` | *(empty)* | Spotify app credentials, used only to search for music when Home Assistant can't |
 | `LOG_LEVEL`   | `INFO`                           | Logging level (the instructions' `DEBUG` flag) |
+
+### Playing music
+
+Media commands go through Home Assistant's built-in media intents
+(e.g. "pause Sonos", "resume Sonos", "next track on Sonos"). For "play X on
+Sonos", Home Assistant is tried first. If its media player can't search, the
+assistant searches Spotify with `SPOTIPY_CLIENT_ID`/`SPOTIPY_CLIENT_SECRET` and
+tells the Home Assistant media player to play the Spotify URI via
+`media_player.play_media`. Use the player's Home Assistant friendly name when
+speaking. The Spotify account must be linked to that player in Home Assistant.
 
 ### Managing the stack
 

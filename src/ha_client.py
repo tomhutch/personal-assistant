@@ -262,6 +262,37 @@ def fetch_ha_devices():
 # Alias for backward compatibility if needed
 get_ha_devices = fetch_ha_devices
 
+def play_ha_media(entity_id: str, media_id: str, media_type: str) -> bool:
+    """Ask a Home Assistant media player to play a media ID (e.g. a Spotify URI)."""
+    headers = {
+        "Authorization": f"Bearer {HA_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "entity_id": entity_id,
+        "media_content_id": media_id,
+        "media_content_type": media_type,
+    }
+    try:
+        response = requests.post(
+            f"{HA_URL}/api/services/media_player/play_media",
+            headers=headers,
+            json=payload,
+            timeout=10.0,
+        )
+    except requests.RequestException as e:
+        logger.error("❌ Failed to call media_player.play_media: %s", e)
+        return False
+    if response.status_code != 200:
+        logger.error(
+            "❌ media_player.play_media failed for %s (HTTP %d): %s",
+            entity_id,
+            response.status_code,
+            response.text[:300],
+        )
+        return False
+    return True
+
 def execute_ha_command(
     domain: str, service: str, entity_id: str, brightness_pct: float | None = None
 ) -> bool:

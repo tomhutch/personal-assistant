@@ -7,6 +7,10 @@ SLM_URL = os.getenv("SLM_URL", "http://localhost:8080/v1/chat/completions")  # l
 HA_URL = os.getenv("HA_URL", "http://localhost:8123")
 HA_TOKEN = os.getenv("HA_TOKEN")
 
+# Spotify catalog search (client credentials only; playback goes through Home Assistant)
+SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID", "").strip()
+SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET", "").strip()
+
 # Audio Config
 SAMPLE_RATE = 16000  # openWakeWord natively expects 16kHz audio
 
