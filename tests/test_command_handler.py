@@ -12,6 +12,26 @@ class TestHandleVoiceCommand:
         monkeypatch.setattr("command_handler._announce_problem", self.announce_problem)
         return self.announce_problem
 
+    @pytest.mark.parametrize("transcript", ["Set Sonos Volume to 30%.", "Sonos volume to 30%.", "Sonos Volumes to 30%."])
+    def test_volume_command_targets_music_assistant_silently(self, monkeypatch, transcript):
+        devices = [
+            {"entity_id": "media_player.sonos", "name": "Sonos", "platform": "sonos"},
+            {"entity_id": "media_player.ma_sonos", "name": "Sonos", "platform": "music_assistant"},
+        ]
+        monkeypatch.setattr("command_handler.fetch_ha_devices", lambda: devices)
+        monkeypatch.setattr("command_handler.record_utterance", lambda *args: np.zeros(16000, dtype=np.float32))
+        monkeypatch.setattr("command_handler.transcribe_audio", lambda *args, **kwargs: transcript)
+        control = MagicMock(return_value=True)
+        speak = MagicMock()
+        conversation = MagicMock()
+        monkeypatch.setattr("command_handler.control_music_assistant_player", control)
+        monkeypatch.setattr("command_handler.speak", speak)
+        monkeypatch.setattr("command_handler.process_ha_conversation", conversation)
+        handle_voice_command(0, noise_floor=0.001)
+        control.assert_called_once_with("media_player.ma_sonos", "volume_set", {"volume_level": 0.3})
+        conversation.assert_not_called()
+        speak.assert_not_called()
+
     @pytest.mark.parametrize(("result", "spoken"), [
         (True, None),
         (False, "Sorry, I couldn't control that speaker."),

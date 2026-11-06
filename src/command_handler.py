@@ -289,9 +289,15 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             return
 
         if "media_control_entity_id" in intent:
-            result = control_music_assistant_player(
-                intent["media_control_entity_id"], intent["media_control_service"]
-            )
+            if "media_control_data" in intent:
+                result = control_music_assistant_player(
+                    intent["media_control_entity_id"], intent["media_control_service"],
+                    intent["media_control_data"],
+                )
+            else:
+                result = control_music_assistant_player(
+                    intent["media_control_entity_id"], intent["media_control_service"]
+                )
             if result is None:
                 _announce_problem("I sent the music command, but couldn't confirm whether it completed.")
             elif result is False:

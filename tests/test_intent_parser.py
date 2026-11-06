@@ -63,3 +63,18 @@ def test_ambiguous_music_control_delegates_to_conversation_with_ai_enabled():
     ):
         assert parse_intent("pause Sonos", []) == intent
     parse_ai.assert_not_called()
+
+
+def test_volume_control_uses_deterministic_parser_with_ai_enabled():
+    intent = {
+        "media_control_entity_id": "media_player.kitchen_sonos",
+        "media_control_service": "volume_set",
+        "media_control_data": {"volume_level": 0.3},
+    }
+    with (
+        patch("config.USE_DETERMINISTIC_INTENT", False),
+        patch("intent_parser.parse_intent_deterministic", return_value=intent),
+        patch("intent_parser.parse_intent_ai") as parse_ai,
+    ):
+        assert parse_intent("set Sonos volume to 30 percent", []) == intent
+    parse_ai.assert_not_called()

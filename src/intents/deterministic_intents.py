@@ -37,6 +37,10 @@ _MEDIA_CONTROL_SERVICES = {
     "HassMediaUnpause": "media_play",
     "HassMediaNext": "media_next_track",
     "HassMediaPrevious": "media_previous_track",
+    "HassMediaPlayerMute": "volume_mute",
+    "HassMediaPlayerUnmute": "volume_mute",
+    "HassSetVolume": "volume_set",
+    "HassSetVolumeRelative": "volume_step",
 }
 _CUSTOM_INTENTS_FILE = Path(__file__).with_name("custom_intents.yaml")
 _OHF_INTENT_FAMILIES = (
@@ -485,10 +489,27 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
             and (not floor or _normalize_value(device.get("floor") or "") == _normalize_value(floor))
         ]
         if len(players) == 1:
-            return {
+            service = _MEDIA_CONTROL_SERVICES[intent_name]
+            data = {}
+            if intent_name == "HassSetVolume":
+                volume = result.entities.get("volume_level")
+                if volume is None or not isinstance(volume.value, (int, float)) or not 0 <= volume.value <= 100:
+                    return {"conversation_text": transcript, "intent_name": intent_name}
+                data["volume_level"] = volume.value / 100
+            elif intent_name in {"HassMediaPlayerMute", "HassMediaPlayerUnmute"}:
+                data["is_volume_muted"] = intent_name == "HassMediaPlayerMute"
+            elif intent_name == "HassSetVolumeRelative":
+                step = result.entities.get("volume_step")
+                if step is None or step.value not in ("up", "down"):
+                    return {"conversation_text": transcript, "intent_name": intent_name}
+                service = f"volume_{step.value}"
+            intent = {
                 "media_control_entity_id": players[0]["entity_id"],
-                "media_control_service": _MEDIA_CONTROL_SERVICES[intent_name],
+                "media_control_service": service,
             }
+            if data:
+                intent["media_control_data"] = data
+            return intent
 
     if intent_name not in {"HassTurnOn", "HassTurnOff", "HassLightSet"}:
         return {"conversation_text": transcript, "intent_name": intent_name}

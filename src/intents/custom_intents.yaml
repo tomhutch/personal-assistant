@@ -32,6 +32,12 @@ intents:
           - "stop [<the>] {name}"
         name_domains:
           - media_player
+  HassSetVolume:
+    data:
+      - sentences:
+          - "[<numeric_value_set>] [<the>] {name} volume[s] to {volume:volume_level}[([ ]%)| percent]"
+        name_domains:
+          - media_player
   PersonalAssistantGetTodoItems:
     data:
       - sentences:

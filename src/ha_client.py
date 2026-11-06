@@ -376,18 +376,33 @@ def play_music_assistant_media(
         return False
     return True
 
-def control_music_assistant_player(entity_id: str, service: str) -> bool | None:
+def control_music_assistant_player(
+    entity_id: str, service: str, data: dict | None = None
+) -> bool | None:
     """Call a media control; a read timeout means the result is unknown."""
-    if not entity_id.startswith("media_player.") or service not in {
-        "media_pause", "media_play", "media_next_track", "media_previous_track",
-    }:
+    data = {} if data is None else data
+    valid = (
+        service in {"media_pause", "media_play", "media_next_track", "media_previous_track", "volume_up", "volume_down"}
+        and not data
+    ) or (
+        service == "volume_set"
+        and set(data) == {"volume_level"}
+        and isinstance(data["volume_level"], (int, float))
+        and not isinstance(data["volume_level"], bool)
+        and 0 <= data["volume_level"] <= 1
+    ) or (
+        service == "volume_mute"
+        and set(data) == {"is_volume_muted"}
+        and isinstance(data["is_volume_muted"], bool)
+    )
+    if not entity_id.startswith("media_player.") or not valid:
         logger.error("Invalid Music Assistant control %s for %s.", service, entity_id)
         return False
     try:
         response = requests.post(
             f"{HA_URL}/api/services/media_player/{service}",
             headers={"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"},
-            json={"entity_id": entity_id},
+            json={"entity_id": entity_id, **data},
             timeout=10.0,
         )
     except requests.ReadTimeout as exc:

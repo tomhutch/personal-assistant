@@ -98,6 +98,59 @@ def test_ambiguous_music_assistant_players_delegate_to_home_assistant():
     }
 
 
+@pytest.mark.parametrize(("text", "service", "data"), [
+    ("Set Sonos Volume to 30%.", "volume_set", {"volume_level": 0.3}),
+    ("Sonos volume to 30%.", "volume_set", {"volume_level": 0.3}),
+    ("Sonos Volumes to 30%.", "volume_set", {"volume_level": 0.3}),
+    ("set Sonos volumes to 30 percent", "volume_set", {"volume_level": 0.3}),
+    ("the Sonos volume to thirty percent", "volume_set", {"volume_level": 0.3}),
+    ("Sonos volume to 0 percent", "volume_set", {"volume_level": 0.0}),
+    ("Sonos volume to 100 percent", "volume_set", {"volume_level": 1.0}),
+    ("set Sonos volume to 0 percent", "volume_set", {"volume_level": 0.0}),
+    ("set Sonos volume to 100 percent", "volume_set", {"volume_level": 1.0}),
+    ("mute Sonos", "volume_mute", {"is_volume_muted": True}),
+    ("unmute Sonos", "volume_mute", {"is_volume_muted": False}),
+    ("turn up Sonos volume", "volume_up", None),
+    ("turn down Sonos volume", "volume_down", None),
+])
+def test_named_volume_targets_unique_music_assistant_player(text, service, data):
+    devices = [
+        {"entity_id": "media_player.sonos", "name": "Sonos", "platform": "sonos"},
+        {"entity_id": "media_player.ma_sonos", "name": "Sonos", "platform": "music_assistant"},
+    ]
+    expected = {"media_control_entity_id": "media_player.ma_sonos", "media_control_service": service}
+    if data is not None:
+        expected["media_control_data"] = data
+    assert parse_intent_deterministic(text, devices) == expected
+
+
+@pytest.mark.parametrize("text", ["increase Sonos volume by 10 percent", "decrease Sonos volume by 10 percent"])
+def test_relative_percent_volume_delegates_to_home_assistant(text):
+    devices = [{"entity_id": "media_player.ma_sonos", "name": "Sonos", "platform": "music_assistant"}]
+    assert parse_intent_deterministic(text, devices) == {
+        "conversation_text": text, "intent_name": "HassSetVolumeRelative",
+    }
+
+
+def test_duplicate_music_assistant_volume_players_delegate():
+    devices = [
+        {"entity_id": "media_player.one", "name": "Sonos", "platform": "music_assistant"},
+        {"entity_id": "media_player.two", "name": "Sonos", "platform": "music_assistant"},
+    ]
+    assert parse_intent_deterministic("set Sonos volume to 30 percent", devices) == {
+        "conversation_text": "set Sonos volume to 30 percent", "intent_name": "HassSetVolume",
+    }
+    assert parse_intent_deterministic("Sonos volume to 30%", devices) == {
+        "conversation_text": "Sonos volume to 30%", "intent_name": "HassSetVolume",
+    }
+
+
+def test_abbreviated_volume_rejects_out_of_range_value():
+    devices = [{"entity_id": "media_player.sonos", "name": "Sonos", "platform": "music_assistant"}]
+    assert parse_intent_deterministic("Sonos volume to 101 percent", devices) is None
+    assert parse_intent_deterministic("Sonos volumes to 101 percent", devices) is None
+
+
 def test_timer_intents_are_handled_locally():
     assert parse_intent_deterministic("set a timer for five minutes", []) == {
         "timer_action": "HassStartTimer",

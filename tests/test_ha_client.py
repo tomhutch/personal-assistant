@@ -13,6 +13,35 @@ from ha_client import (
 )
 
 class TestHomeAssistantClient:
+    @pytest.mark.parametrize(("service", "data"), [
+        ("volume_set", {"volume_level": 0.3}),
+        ("volume_set", {"volume_level": 0.0}),
+        ("volume_set", {"volume_level": 1.0}),
+        ("volume_mute", {"is_volume_muted": True}),
+        ("volume_mute", {"is_volume_muted": False}),
+        ("volume_up", {}),
+        ("volume_down", {}),
+    ])
+    @patch("ha_client.requests.post")
+    def test_volume_control_sends_expected_payload(self, mock_post, service, data):
+        mock_post.return_value.status_code = 200
+        assert ha_client.control_music_assistant_player("media_player.sonos", service, data) is True
+        assert mock_post.call_args.args[0].endswith(f"/api/services/media_player/{service}")
+        assert mock_post.call_args.kwargs["json"] == {"entity_id": "media_player.sonos", **data}
+
+    @pytest.mark.parametrize(("service", "data"), [
+        ("volume_set", {"volume_level": -0.1}),
+        ("volume_set", {"volume_level": 1.1}),
+        ("volume_set", {"volume_level": True}),
+        ("volume_set", {"volume_level": float("nan")}),
+        ("volume_mute", {"is_volume_muted": 1}),
+        ("volume_up", {"entity_id": "media_player.other"}),
+    ])
+    @patch("ha_client.requests.post")
+    def test_volume_control_rejects_invalid_data(self, mock_post, service, data):
+        assert ha_client.control_music_assistant_player("media_player.sonos", service, data) is False
+        mock_post.assert_not_called()
+
     @pytest.mark.parametrize("service", ["media_pause", "media_play", "media_next_track", "media_previous_track"])
     @patch("ha_client.requests.post")
     def test_control_music_assistant_player_calls_ha_service(self, mock_post, service, monkeypatch):

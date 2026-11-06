@@ -247,12 +247,16 @@ Whisper, Home Assistant, and the optional SLM have their own logging settings.
 
 ### Playing music
 
-For named pause, stop, resume, next and previous commands, the assistant controls a
+For named pause, stop, resume, next, previous, mute and volume commands, the assistant controls a
 uniquely matching Music Assistant player directly, preferring it over any
 same-named entity from another integration. If there is no unique match, or no
 speaker is named, the command goes to Home Assistant's conversation service.
 For example, "pause Sonos" and "stop Sonos" both pause playback, which can
 then be resumed. Successful direct controls are silent; failures are announced.
+For example, "set Sonos volume to 30 percent" (or "Sonos volume to 30 percent"),
+"mute Sonos" and "turn up Sonos
+volume" target the Music Assistant player. A relative change by a specific
+percentage remains delegated to Home Assistant.
 For "play X on Sonos", the assistant
 searches the configured Music Assistant provider through Home Assistant, then
 plays the selected result on the Music Assistant media-player entity. Exact

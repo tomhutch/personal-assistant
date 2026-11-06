@@ -20,6 +20,7 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
         or "media_control_entity_id" in deterministic_intent
         or deterministic_intent.get("intent_name") in {
             "HassMediaPause", "HassMediaUnpause", "HassMediaNext", "HassMediaPrevious",
+            "HassMediaPlayerMute", "HassMediaPlayerUnmute", "HassSetVolume", "HassSetVolumeRelative",
         }
     ):
         return deterministic_intent
