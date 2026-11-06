@@ -390,11 +390,11 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
         if result is None:
             result = first_typed_media_result or first_result
     except Exception:
-        logger.debug("Deterministic parser hit a HassIL match failure; falling back to alias matching for %r", transcript)
+        logger.debug("Deterministic parser hit a HassIL match failure; falling back to alias matching.")
         result = None
 
     if not result:
-        logger.debug("Deterministic parser did not match transcript: %r", transcript)
+        logger.debug("Deterministic parser did not match transcript.")
         return None
 
     intent_name = result.intent.name

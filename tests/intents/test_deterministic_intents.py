@@ -71,6 +71,16 @@ def test_timer_intents_are_handled_locally():
     assert parse_intent_deterministic("cancel all timers", [])["timer_action"] == "HassCancelAllTimers"
 
 
+def test_unmatched_transcript_is_not_written_to_parser_debug_log(caplog):
+    caplog.set_level("DEBUG")
+    transcript = "Unrecognizable sentence about quantum macaroni"
+
+    assert parse_intent_deterministic(transcript, []) is None
+
+    assert "Deterministic parser did not match transcript." in caplog.text
+    assert transcript not in caplog.text
+
+
 def test_timers_can_be_targeted_by_number_or_duration():
     for transcript in ("cancel the first timer", "cancel timer one", "cancel timer number 1"):
         assert parse_intent_deterministic(transcript, [])["timer_number"] == 1

@@ -2,6 +2,7 @@ import logging
 import re
 import threading
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from config import LOG_TRANSCRIPTS
 from audio import record_utterance
 from transcriber import transcribe_audio
 from ha_client import (
@@ -245,7 +246,8 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
 
         logger.debug("🔄 Transcribing command via Whisper (with lean context prompt)...")
         transcript = transcribe_audio(audio_data, prompt=prompt_context)
-        logger.debug("➜ Transcript: '%s'", transcript)
+        if LOG_TRANSCRIPTS:
+            logger.info("➜ Transcript: %r", transcript)
 
         if shutdown_event and shutdown_event.is_set():
             return

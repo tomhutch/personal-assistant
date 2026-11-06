@@ -236,6 +236,14 @@ systemd via `EnvironmentFile=/home/ubuntu/personal-assistant/.env`:
 | `HA_URL`      | `http://localhost:8123`          | Home Assistant base URL                  |
 | `HA_TOKEN`    | *(empty)*                        | Home Assistant long-lived access token   |
 | `LOG_LEVEL`   | `INFO`                           | Logging level (the instructions' `DEBUG` flag) |
+| `LOG_TRANSCRIPTS` | `true`                       | Log recognized command transcripts at INFO level |
+
+Transcripts can contain sensitive speech and will be stored wherever the
+assistant's logs are collected (for example, the systemd journal). Set
+`LOG_TRANSCRIPTS=false` to disable the explicit transcript log. This is not a
+privacy guarantee: other logs may contain parts of commands or responses, and
+Whisper, Home Assistant, and the optional SLM have their own logging settings.
+`LOG_LEVEL=WARNING` or higher also suppresses the INFO transcript log.
 
 ### Playing music
 

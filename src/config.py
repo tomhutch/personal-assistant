@@ -30,6 +30,7 @@ USE_DETERMINISTIC_INTENT = os.getenv("USE_DETERMINISTIC_INTENT", "true").strip()
 # Read log level from environment variable, default to INFO if not set
 LOG_LEVEL_STR = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_LEVEL = getattr(logging, LOG_LEVEL_STR, logging.INFO)
+LOG_TRANSCRIPTS = os.getenv("LOG_TRANSCRIPTS", "true").strip().lower() not in {"", "0", "false", "no", "off"}
 
 # LED Config
 LED_ENABLED = True

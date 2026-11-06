@@ -1,4 +1,5 @@
 import pytest
+import logging
 from unittest.mock import MagicMock, patch
 import numpy as np
 from command_handler import handle_voice_command
@@ -10,6 +11,33 @@ class TestHandleVoiceCommand:
         self.announce_problem = MagicMock()
         monkeypatch.setattr("command_handler._announce_problem", self.announce_problem)
         return self.announce_problem
+
+    @pytest.mark.parametrize("enabled", [True, False])
+    def test_transcript_logging_respects_setting(self, monkeypatch, caplog, enabled):
+        monkeypatch.setattr("command_handler.LOG_TRANSCRIPTS", enabled)
+        monkeypatch.setattr("command_handler.fetch_ha_devices", lambda: [])
+        monkeypatch.setattr(
+            "command_handler.record_utterance",
+            lambda *args: np.zeros(16000, dtype=np.float32),
+        )
+        monkeypatch.setattr(
+            "command_handler.transcribe_audio", lambda *args, **kwargs: "Unrecognized unusual phrase."
+        )
+        monkeypatch.setattr("command_handler.is_stop_command", lambda transcript: False)
+        monkeypatch.setattr("command_handler.parse_intent", lambda *args: None)
+        caplog.set_level(logging.DEBUG)
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        transcript_logs = [
+            record for record in caplog.records
+            if "Unrecognized unusual phrase." in record.getMessage()
+        ]
+        if enabled:
+            assert len(transcript_logs) == 1
+            assert transcript_logs[0].levelno == logging.INFO
+        else:
+            assert transcript_logs == []
 
     @patch("command_handler.speak")
     @patch("command_handler.process_ha_conversation", create=True)
