@@ -13,7 +13,7 @@ SAMPLE_RATE = 16000  # openWakeWord natively expects 16kHz audio
 
 # Wake Word Config
 WAKE_WORD_MODEL = "hey_jarvis"  # Options: "alexa", "hey_jarvis", "hey_mycroft", "hey_rhasspy" (https://github.com/dscripka/openWakeWord/tree/main/docs/models)
-WAKE_WORD_THRESHOLD = 0.3   # Confidence threshold between 0.0 and 1.0
+WAKE_WORD_THRESHOLD = 0.5   # Confidence threshold between 0.0 and 1.0
 
 # Command recording configuration
 COMMAND_MAX_DURATION = 10.0         # Hard safety limit for command recording in seconds
