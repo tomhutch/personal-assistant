@@ -15,9 +15,14 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
     deterministic_intent = parse_intent_deterministic(
         transcript, controllable_devices
     )
-    if deterministic_intent and "media_search_query" in deterministic_intent:
+    if deterministic_intent and (
+        "media_search_query" in deterministic_intent
+        or "media_control_entity_id" in deterministic_intent
+        or deterministic_intent.get("intent_name") in {
+            "HassMediaPause", "HassMediaUnpause", "HassMediaNext", "HassMediaPrevious",
+        }
+    ):
         return deterministic_intent
 
     logger.debug("⚡ Parsing intent via AI strategy...")
     return parse_intent_ai(transcript, controllable_devices)
-

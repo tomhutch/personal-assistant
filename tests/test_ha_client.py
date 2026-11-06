@@ -13,6 +13,24 @@ from ha_client import (
 )
 
 class TestHomeAssistantClient:
+    @pytest.mark.parametrize("service", ["media_pause", "media_play", "media_next_track", "media_previous_track"])
+    @patch("ha_client.requests.post")
+    def test_control_music_assistant_player_calls_ha_service(self, mock_post, service, monkeypatch):
+        monkeypatch.setattr("ha_client.HA_TOKEN", "test-token")
+        mock_post.return_value.status_code = 200
+        assert ha_client.control_music_assistant_player("media_player.kitchen_sonos", service) is True
+        args, kwargs = mock_post.call_args
+        assert args[0].endswith(f"/api/services/media_player/{service}")
+        assert kwargs["json"] == {"entity_id": "media_player.kitchen_sonos"}
+        assert kwargs["headers"]["Authorization"] == "Bearer test-token"
+
+    @patch("ha_client.requests.post")
+    def test_control_music_assistant_player_handles_failure_and_timeout(self, mock_post):
+        mock_post.return_value.status_code = 500
+        assert ha_client.control_music_assistant_player("media_player.sonos", "media_pause") is False
+        mock_post.side_effect = requests.ReadTimeout("timeout")
+        assert ha_client.control_music_assistant_player("media_player.sonos", "media_pause") is None
+
     @patch("ha_client.websocket.create_connection")
     def test_fetch_entity_areas_joins_entity_and_area_registries(
         self, mock_create_connection, monkeypatch

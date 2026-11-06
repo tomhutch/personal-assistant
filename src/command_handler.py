@@ -6,6 +6,7 @@ from config import LOG_TRANSCRIPTS
 from audio import record_utterance
 from transcriber import transcribe_audio
 from ha_client import (
+    control_music_assistant_player,
     execute_ha_command,
     fetch_ha_devices,
     get_ha_todo_items,
@@ -285,6 +286,18 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
 
         if "media_search_query" in intent:
             _play_via_music_assistant(intent, controllable_devices, led)
+            return
+
+        if "media_control_entity_id" in intent:
+            result = control_music_assistant_player(
+                intent["media_control_entity_id"], intent["media_control_service"]
+            )
+            if result is None:
+                _announce_problem("I sent the music command, but couldn't confirm whether it completed.")
+            elif result is False:
+                _announce_problem("Sorry, I couldn't control that speaker.")
+            if led:
+                led.set_state(AssistantState.SUCCESS if result is True else AssistantState.FAILURE)
             return
 
         if intent.get("conversation_text"):

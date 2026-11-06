@@ -63,6 +63,41 @@ def test_requested_intent_families_delegate_to_home_assistant():
         }
 
 
+@pytest.mark.parametrize(
+    ("text", "service"),
+    [
+        ("pause Sonos", "media_pause"),
+        ("stop Sonos", "media_pause"),
+        ("stop the Sonos", "media_pause"),
+        ("resume Sonos", "media_play"),
+        ("next track on Sonos", "media_next_track"),
+        ("previous track on Sonos", "media_previous_track"),
+    ],
+)
+def test_named_media_control_prefers_unique_music_assistant_player(text, service):
+    devices = [
+        {"entity_id": "media_player.sonos", "name": "Sonos", "platform": "sonos"},
+        {"entity_id": "media_player.ma_sonos", "name": "Sonos", "platform": "music_assistant"},
+    ]
+    assert parse_intent_deterministic(text, devices) == {
+        "media_control_entity_id": "media_player.ma_sonos",
+        "media_control_service": service,
+    }
+
+
+def test_ambiguous_music_assistant_players_delegate_to_home_assistant():
+    devices = [
+        {"entity_id": "media_player.one", "name": "Sonos", "platform": "music_assistant"},
+        {"entity_id": "media_player.two", "name": "Sonos", "platform": "music_assistant"},
+    ]
+    assert parse_intent_deterministic("pause Sonos", devices) == {
+        "conversation_text": "pause Sonos", "intent_name": "HassMediaPause",
+    }
+    assert parse_intent_deterministic("stop Sonos", devices) == {
+        "conversation_text": "stop Sonos", "intent_name": "HassMediaPause",
+    }
+
+
 def test_timer_intents_are_handled_locally():
     assert parse_intent_deterministic("set a timer for five minutes", []) == {
         "timer_action": "HassStartTimer",

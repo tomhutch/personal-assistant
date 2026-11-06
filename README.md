@@ -247,8 +247,13 @@ Whisper, Home Assistant, and the optional SLM have their own logging settings.
 
 ### Playing music
 
-Media controls use Home Assistant's built-in intents (e.g. "pause Sonos",
-"resume Sonos", "next track on Sonos"). For "play X on Sonos", the assistant
+For named pause, stop, resume, next and previous commands, the assistant controls a
+uniquely matching Music Assistant player directly, preferring it over any
+same-named entity from another integration. If there is no unique match, or no
+speaker is named, the command goes to Home Assistant's conversation service.
+For example, "pause Sonos" and "stop Sonos" both pause playback, which can
+then be resumed. Successful direct controls are silent; failures are announced.
+For "play X on Sonos", the assistant
 searches the configured Music Assistant provider through Home Assistant, then
 plays the selected result on the Music Assistant media-player entity. Exact
 artist requests select the best matching playlist; track, album, and playlist

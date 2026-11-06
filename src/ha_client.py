@@ -376,6 +376,32 @@ def play_music_assistant_media(
         return False
     return True
 
+def control_music_assistant_player(entity_id: str, service: str) -> bool | None:
+    """Call a media control; a read timeout means the result is unknown."""
+    if not entity_id.startswith("media_player.") or service not in {
+        "media_pause", "media_play", "media_next_track", "media_previous_track",
+    }:
+        logger.error("Invalid Music Assistant control %s for %s.", service, entity_id)
+        return False
+    try:
+        response = requests.post(
+            f"{HA_URL}/api/services/media_player/{service}",
+            headers={"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"},
+            json={"entity_id": entity_id},
+            timeout=10.0,
+        )
+    except requests.ReadTimeout as exc:
+        logger.warning("Music Assistant control %s on %s timed out; result unknown: %s", service, entity_id, exc)
+        return None
+    except requests.RequestException as exc:
+        logger.error("Music Assistant control %s on %s failed: %s", service, entity_id, exc)
+        return False
+    if response.status_code != 200:
+        logger.error("Music Assistant control %s on %s failed (HTTP %d): %s", service, entity_id, response.status_code, response.text[:300])
+        return False
+    return True
+
+
 def execute_ha_command(
     domain: str, service: str, entity_id: str, brightness_pct: float | None = None
 ) -> bool:

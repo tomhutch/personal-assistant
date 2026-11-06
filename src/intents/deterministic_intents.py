@@ -32,6 +32,12 @@ _LOCAL_TIMER_INTENTS = {
     "HassUnpauseTimer",
     "HassTimerStatus",
 }
+_MEDIA_CONTROL_SERVICES = {
+    "HassMediaPause": "media_pause",
+    "HassMediaUnpause": "media_play",
+    "HassMediaNext": "media_next_track",
+    "HassMediaPrevious": "media_previous_track",
+}
 _CUSTOM_INTENTS_FILE = Path(__file__).with_name("custom_intents.yaml")
 _OHF_INTENT_FAMILIES = (
     "HassTurnOn",
@@ -219,6 +225,13 @@ def _extract_area_hint(transcript: str) -> str | None:
     return matches[-1].strip()
 
 
+def _device_matches_name(device: dict, matched_name: str) -> bool:
+    aliases = [device.get("name") or ""]
+    if entity_id := device.get("entity_id"):
+        aliases.append(entity_id.split(".")[-1].replace("_", " "))
+    return any(_normalize_value(alias) == _normalize_value(matched_name) for alias in aliases)
+
+
 def _find_matching_device(
     transcript: str,
     controllable_devices: list,
@@ -228,21 +241,12 @@ def _find_matching_device(
     if not matched_name:
         return None
 
-    normalized_target = _normalize_value(matched_name)
     area_hint = _extract_area_hint(transcript)
 
-    candidate_devices = []
-    for device in controllable_devices:
-        aliases = []
-        if device.get("name"):
-            aliases.append(device["name"])
-        entity_id = device.get("entity_id") or ""
-        if entity_id:
-            aliases.append(entity_id.split(".")[-1].replace("_", " "))
-        for alias in aliases:
-            if _normalize_value(alias) == normalized_target:
-                candidate_devices.append(device)
-                break
+    candidate_devices = [
+        device for device in controllable_devices
+        if _device_matches_name(device, matched_name)
+    ]
 
     if not candidate_devices:
         return None
@@ -466,6 +470,25 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
         if name_entity := result.entities.get("name"):
             intent["media_player_name"] = str(name_entity.value)
         return intent
+
+    if intent_name in _MEDIA_CONTROL_SERVICES and (name_entity := result.entities.get("name")):
+        area_entity = result.entities.get("area")
+        floor_entity = result.entities.get("floor")
+        area = str(area_entity.value) if area_entity else _extract_area_hint(transcript)
+        floor = str(floor_entity.value) if floor_entity else None
+        players = [
+            device for device in controllable_devices
+            if (device.get("entity_id") or "").startswith("media_player.")
+            and device.get("platform") == "music_assistant"
+            and _device_matches_name(device, str(name_entity.value))
+            and (not area or _normalize_value(device.get("area") or "") == _normalize_value(area))
+            and (not floor or _normalize_value(device.get("floor") or "") == _normalize_value(floor))
+        ]
+        if len(players) == 1:
+            return {
+                "media_control_entity_id": players[0]["entity_id"],
+                "media_control_service": _MEDIA_CONTROL_SERVICES[intent_name],
+            }
 
     if intent_name not in {"HassTurnOn", "HassTurnOff", "HassLightSet"}:
         return {"conversation_text": transcript, "intent_name": intent_name}

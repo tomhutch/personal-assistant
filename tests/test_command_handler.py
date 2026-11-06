@@ -12,6 +12,40 @@ class TestHandleVoiceCommand:
         monkeypatch.setattr("command_handler._announce_problem", self.announce_problem)
         return self.announce_problem
 
+    @pytest.mark.parametrize(("result", "spoken"), [
+        (True, None),
+        (False, "Sorry, I couldn't control that speaker."),
+        (None, "I sent the music command, but couldn't confirm whether it completed."),
+    ])
+    @pytest.mark.parametrize("transcript", ["Pause, Sonos.", "Stop Sonos."])
+    def test_pause_duplicate_sonos_targets_music_assistant(self, monkeypatch, result, spoken, transcript):
+        devices = [
+            {"entity_id": "media_player.sonos", "name": "Sonos", "platform": "sonos"},
+            {"entity_id": "media_player.ma_sonos", "name": "Sonos", "platform": "music_assistant"},
+        ]
+        monkeypatch.setattr("command_handler.fetch_ha_devices", lambda: devices)
+        monkeypatch.setattr("command_handler.record_utterance", lambda *args: np.zeros(16000, dtype=np.float32))
+        monkeypatch.setattr("command_handler.transcribe_audio", lambda *args, **kwargs: transcript)
+        control = MagicMock(return_value=result)
+        speak = MagicMock()
+        conversation = MagicMock()
+        monkeypatch.setattr("command_handler.control_music_assistant_player", control)
+        monkeypatch.setattr("command_handler.speak", speak)
+        monkeypatch.setattr("command_handler.process_ha_conversation", conversation)
+        led = MagicMock()
+
+        handle_voice_command(0, noise_floor=0.001, led=led)
+
+        control.assert_called_once_with("media_player.ma_sonos", "media_pause")
+        conversation.assert_not_called()
+        speak.assert_not_called()
+        if result is True:
+            self.announce_problem.assert_not_called()
+            assert led.set_state.call_args.args[0] == AssistantState.SUCCESS
+        else:
+            self.announce_problem.assert_called_once_with(spoken)
+            assert led.set_state.call_args.args[0] == AssistantState.FAILURE
+
     @pytest.mark.parametrize("enabled", [True, False])
     def test_transcript_logging_respects_setting(self, monkeypatch, caplog, enabled):
         monkeypatch.setattr("command_handler.LOG_TRANSCRIPTS", enabled)

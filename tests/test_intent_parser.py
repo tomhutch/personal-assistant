@@ -38,3 +38,28 @@ def test_music_search_uses_deterministic_slots_with_ai_parser_enabled():
 
     assert intent == media_intent
     parse_ai.assert_not_called()
+
+
+def test_named_music_control_uses_deterministic_parser_with_ai_enabled():
+    media_intent = {
+        "media_control_entity_id": "media_player.kitchen_sonos",
+        "media_control_service": "media_pause",
+    }
+    with (
+        patch("config.USE_DETERMINISTIC_INTENT", False),
+        patch("intent_parser.parse_intent_deterministic", return_value=media_intent),
+        patch("intent_parser.parse_intent_ai") as parse_ai,
+    ):
+        assert parse_intent("pause Sonos", []) == media_intent
+    parse_ai.assert_not_called()
+
+
+def test_ambiguous_music_control_delegates_to_conversation_with_ai_enabled():
+    intent = {"conversation_text": "pause Sonos", "intent_name": "HassMediaPause"}
+    with (
+        patch("config.USE_DETERMINISTIC_INTENT", False),
+        patch("intent_parser.parse_intent_deterministic", return_value=intent),
+        patch("intent_parser.parse_intent_ai") as parse_ai,
+    ):
+        assert parse_intent("pause Sonos", []) == intent
+    parse_ai.assert_not_called()
