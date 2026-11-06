@@ -1,5 +1,6 @@
 import os
 import logging
+import math
 
 # API Endpoints (overridable via environment variables, e.g. from .env under systemd)
 WHISPER_URL = os.getenv("WHISPER_URL", "http://localhost:8081/inference")
@@ -17,7 +18,10 @@ WAKE_WORD_THRESHOLD = 0.5   # Confidence threshold between 0.0 and 1.0
 # Command recording configuration
 COMMAND_MAX_DURATION = 10.0         # Hard safety limit for command recording in seconds
 COMMAND_SPEECH_MULTIPLIER = 1.8     # Multiplier above noise floor to detect speech
-COMMAND_POST_SPEECH_WINDOW = 2      # Fixed recording duration after speech starts (music-proof)
+COMMAND_MIN_SPEECH_RMS = float(os.getenv("COMMAND_MIN_SPEECH_RMS", "0.003"))
+if not math.isfinite(COMMAND_MIN_SPEECH_RMS) or COMMAND_MIN_SPEECH_RMS <= 0:
+    raise ValueError("COMMAND_MIN_SPEECH_RMS must be a positive finite number")
+COMMAND_SILENCE_DURATION = 1.5      # Quiet time after speech before ending the command
 
 # Intent Parsing
 SLM_TIMEOUT_SECONDS = 10.0
@@ -36,4 +40,3 @@ PIPER_VOICE_MODEL = os.getenv(
 	"PIPER_VOICE_MODEL", "en_US-norman-medium.onnx"
 )
 PIPER_OUTPUT_DEVICE = os.getenv("PIPER_OUTPUT_DEVICE", "")
-

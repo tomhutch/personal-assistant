@@ -65,6 +65,22 @@ Piper uses the system's default output device by default. To choose another
 output, set `PIPER_OUTPUT_DEVICE` to a fragment of its device name; PulseAudio
 devices are preferred when multiple matching entries are available.
 
+### Command recording
+
+After the wake word, recording continues while sound exceeds the speech energy
+threshold and stops after 1.5 seconds below it. It also stops after three
+seconds if no speech is detected, or after ten seconds total as a safety limit.
+
+The minimum RMS threshold defaults to `0.003` on normalized microphone samples.
+Set `COMMAND_MIN_SPEECH_RMS` in the assistant's environment to a positive number
+to adjust it: increase it if quiet background noise keeps recording open, or
+decrease it if speech is being missed. The effective threshold is the higher of
+this setting and 1.8 times the supplied noise floor. The wake-word path currently
+supplies a fixed baseline of `0.001` rather than measuring the room's noise
+level. This is an energy threshold, not speech recognition: music louder than
+the threshold can keep recording open until the safety limit, and raising it
+too far can miss quiet speech.
+
 ### Start the Llama Server (Qwen 2.5 0.5B SLM, port 8080)
 
 ```bash

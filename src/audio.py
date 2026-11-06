@@ -9,7 +9,8 @@ from config import (
     SAMPLE_RATE,
     COMMAND_MAX_DURATION,
     COMMAND_SPEECH_MULTIPLIER,
-    COMMAND_POST_SPEECH_WINDOW,
+    COMMAND_MIN_SPEECH_RMS,
+    COMMAND_SILENCE_DURATION,
     WAKE_WORD_MODEL,
     WAKE_WORD_THRESHOLD,
 )
@@ -104,13 +105,16 @@ def find_input_device():
 
 def record_utterance(input_device, noise_floor, cancel_event=None):
     logger.debug("🎤 Command mode active. Speak your command...")
-    speech_threshold = max(noise_floor * COMMAND_SPEECH_MULTIPLIER, 0.003)
+    speech_threshold = max(noise_floor * COMMAND_SPEECH_MULTIPLIER, COMMAND_MIN_SPEECH_RMS)
     chunks = []
     chunk_duration = 0.1
     chunk_samples = int(SAMPLE_RATE * chunk_duration)
-    total_duration = 0.0
+    max_samples = int(SAMPLE_RATE * COMMAND_MAX_DURATION)
+    silence_samples = int(SAMPLE_RATE * COMMAND_SILENCE_DURATION)
+    start_timeout_samples = int(SAMPLE_RATE * 3.0)
+    total_samples = 0
     speech_detected = False
-    post_speech_duration = 0.0
+    quiet_samples = 0
 
     if input_device is None:
         logger.error("❌ No usable audio input device found; cannot record utterance.")
@@ -118,28 +122,35 @@ def record_utterance(input_device, noise_floor, cancel_event=None):
     if cancel_event and cancel_event.is_set():
         return np.array([], dtype=np.float32)
 
+    logger.debug("Command speech RMS threshold: %.4f", speech_threshold)
     with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32') as stream:
         while (
-            total_duration < COMMAND_MAX_DURATION
+            total_samples < max_samples
             and not (cancel_event and cancel_event.is_set())
         ):
-            audio_block, _ = stream.read(chunk_samples)
+            audio_block, overflowed = stream.read(min(chunk_samples, max_samples - total_samples))
+            if overflowed:
+                logger.warning("Audio input overflowed while recording the command.")
             block = audio_block[:, 0]
             chunks.append(block)
-            total_duration += chunk_duration
+            total_samples += len(block)
             
             rms = np.sqrt(np.mean(block**2))
             if rms > speech_threshold:
                 speech_detected = True
-            
-            if speech_detected:
-                post_speech_duration += chunk_duration
-                if post_speech_duration >= COMMAND_POST_SPEECH_WINDOW:
+                quiet_samples = 0
+            elif speech_detected:
+                quiet_samples += len(block)
+                if quiet_samples >= silence_samples:
+                    logger.debug("Command recording ended after a quiet pause.")
                     break
                 
-            if not speech_detected and total_duration >= 3.0:
+            if not speech_detected and total_samples >= start_timeout_samples:
+                logger.debug("Command recording ended: no speech detected.")
                 break
 
+    if total_samples >= max_samples:
+        logger.debug("Command recording reached the %.1f second safety limit.", COMMAND_MAX_DURATION)
     if not chunks:
         return np.array([], dtype=np.float32)
     return np.concatenate(chunks, axis=0)
@@ -171,4 +182,3 @@ class RollingAudioBuffer:
         with self.lock:
             self.buffer.clear()
             self.current_samples = 0
-

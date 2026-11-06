@@ -158,24 +158,59 @@ class TestRecordUtterance:
         mock_stream.read.assert_called_once_with(chunk_samples)
 
     @patch("audio.sd.InputStream")
-    def test_scenario_continuous_music_noise_resilience(self, mock_input_stream_cls):
-        """Scenario: Continuous background music keeps audio elevated, but fixed post-speech window terminates cleanly."""
+    def test_speech_continues_across_short_pauses_and_stops_after_quiet(self, mock_input_stream_cls):
         mock_stream = MagicMock()
-        chunk_samples = int(SAMPLE_RATE * 0.1)  # 100ms chunks
-        
-        music_chunk = np.full((chunk_samples, 1), 0.015, dtype=np.float32)
-        mock_stream.read.side_effect = [(music_chunk, False) for _ in range(60)]
+        chunk_samples = int(SAMPLE_RATE * 0.1)
+        speech = np.full((chunk_samples, 1), 0.02, dtype=np.float32)
+        quiet = np.full((chunk_samples, 1), 0.002, dtype=np.float32)
+        blocks = [speech] * 30 + [quiet] * 10 + [speech] * 10 + [quiet] * 20
+        mock_stream.read.side_effect = [(block, False) for block in blocks]
         mock_input_stream_cls.return_value.__enter__.return_value = mock_stream
-        
-        noise_floor = 0.001
-        audio_result = record_utterance(0, noise_floor)
-        
-        assert isinstance(audio_result, np.ndarray)
-        assert len(audio_result) > 0
-        assert len(audio_result) <= int(SAMPLE_RATE * 6.0)
+
+        audio_result = record_utterance(0, 0.001)
+
+        assert len(audio_result) == chunk_samples * 65
+        np.testing.assert_array_equal(audio_result, np.concatenate([b[:, 0] for b in blocks[:65]]))
         mock_input_stream_cls.assert_called_once_with(
             device=0, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
+
+    @patch("audio.sd.InputStream")
+    def test_background_below_threshold_does_not_extend_recording(self, mock_input_stream_cls):
+        mock_stream = mock_input_stream_cls.return_value.__enter__.return_value
+        chunk_samples = int(SAMPLE_RATE * 0.1)
+        speech = np.full((chunk_samples, 1), 0.02, dtype=np.float32)
+        music = np.full((chunk_samples, 1), 0.015, dtype=np.float32)
+        mock_stream.read.side_effect = [(block, False) for block in [speech] * 10 + [music] * 20]
+
+        audio_result = record_utterance(0, 0.01)
+
+        assert len(audio_result) == chunk_samples * 25
+
+    @patch("audio.sd.InputStream")
+    def test_continuous_sound_above_threshold_stops_at_safety_limit(self, mock_input_stream_cls):
+        mock_stream = mock_input_stream_cls.return_value.__enter__.return_value
+        chunk_samples = int(SAMPLE_RATE * 0.1)
+        music = np.full((chunk_samples, 1), 0.015, dtype=np.float32)
+        mock_stream.read.return_value = (music, False)
+
+        audio_result = record_utterance(0, 0.001)
+
+        assert len(audio_result) == SAMPLE_RATE * 10
+        assert mock_stream.read.call_count == 100
+
+    @patch("audio.sd.InputStream")
+    def test_configured_minimum_threshold_treats_background_as_quiet(self, mock_input_stream_cls, monkeypatch):
+        monkeypatch.setattr("audio.COMMAND_MIN_SPEECH_RMS", 0.02)
+        mock_stream = mock_input_stream_cls.return_value.__enter__.return_value
+        chunk_samples = int(SAMPLE_RATE * 0.1)
+        speech = np.full((chunk_samples, 1), 0.03, dtype=np.float32)
+        music = np.full((chunk_samples, 1), 0.015, dtype=np.float32)
+        mock_stream.read.side_effect = [(block, False) for block in [speech] * 10 + [music] * 20]
+
+        audio_result = record_utterance(0, 0.001)
+
+        assert len(audio_result) == chunk_samples * 25
 
     @patch("audio.sd.InputStream")
     def test_scenario_no_speech_timeout(self, mock_input_stream_cls):
@@ -191,6 +226,7 @@ class TestRecordUtterance:
         audio_result = record_utterance(0, noise_floor)
         
         assert isinstance(audio_result, np.ndarray)
+        assert len(audio_result) == SAMPLE_RATE * 3
         mock_input_stream_cls.assert_called_once_with(
             device=0, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
