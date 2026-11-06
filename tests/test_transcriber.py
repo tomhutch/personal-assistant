@@ -5,6 +5,16 @@ from transcriber import transcribe_audio
 
 class TestTranscribeAudio:
     @patch("requests.post")
+    def test_timer_vocabulary_prompt_is_sent_to_whisper(self, mock_post):
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {"text": "stop the timer"}
+
+        result = transcribe_audio(np.zeros(16000, dtype=np.float32), prompt="Stop the timer. Set a timer.")
+
+        assert result == "stop the timer"
+        assert mock_post.call_args.kwargs["data"]["prompt"] == "Stop the timer. Set a timer."
+
+    @patch("requests.post")
     def test_scenario_successful_transcription(self, mock_post):
         """Scenario: Whisper API successfully receives audio and returns transcript text."""
         mock_response = MagicMock()

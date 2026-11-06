@@ -12,6 +12,25 @@ class TestHandleVoiceCommand:
         monkeypatch.setattr("command_handler._announce_problem", self.announce_problem)
         return self.announce_problem
 
+    def test_whisper_prompt_includes_timer_vocabulary_and_device_names(self, monkeypatch):
+        devices = [{"entity_id": "media_player.sonos", "name": "Sonos", "area": "Kitchen"}]
+        monkeypatch.setattr("command_handler.fetch_ha_devices", lambda: devices)
+        monkeypatch.setattr("command_handler.record_utterance", lambda *args: np.zeros(16000, dtype=np.float32))
+        transcribe = MagicMock(return_value="stop the timer")
+        monkeypatch.setattr("command_handler.transcribe_audio", transcribe)
+        monkeypatch.setattr("command_handler.is_stop_command", lambda transcript: True)
+        stop = MagicMock()
+        monkeypatch.setattr("command_handler.stop_alarm", stop)
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        prompt = transcribe.call_args.kwargs["prompt"]
+        assert "Stop the timer." in prompt
+        assert "Set a timer." in prompt
+        assert "Turn on. Turn off." in prompt
+        assert "Sonos in Kitchen" in prompt
+        stop.assert_called_once_with()
+
     @pytest.mark.parametrize("transcript", ["Set Sonos Volume to 30%.", "Sonos volume to 30%.", "Sonos Volumes to 30%."])
     def test_volume_command_targets_music_assistant_silently(self, monkeypatch, transcript):
         devices = [
