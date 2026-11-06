@@ -1,4 +1,5 @@
 import logging
+import re
 import threading
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from audio import record_utterance
@@ -8,14 +9,15 @@ from ha_client import (
     fetch_ha_devices,
     get_ha_todo_items,
     get_ha_weather_forecast,
-    play_ha_media,
+    MusicAssistantError,
+    play_music_assistant_media,
     process_ha_conversation,
+    search_music_assistant,
 )
 from intent_parser import parse_intent
 from intents.deterministic_intents import _find_matching_device
 from led import AssistantState
 from speech import speak
-from spotify_search import SpotifySearchError, find_spotify_media
 from timers import handle_timer_intent, is_stop_command, stop_alarm
 
 logger = logging.getLogger(__name__)
@@ -26,15 +28,52 @@ def _announce_problem(message):
     except Exception:
         logger.exception("Could not play spoken failure message.")
 
-def _media_search_unsupported(conversation_result) -> bool:
-    response = (conversation_result or {}).get("response", {})
-    return (
-        response.get("response_type") == "error"
-        and (response.get("data") or {}).get("code") == "failed_to_handle"
-    )
+def _normalize_media_name(value):
+    return re.sub(r"[\W_]+", "", str(value).casefold())
 
-def _play_via_spotify_search(intent, controllable_devices, led):
-    """Search Spotify and have the Home Assistant media player play the result."""
+
+def _select_music_assistant_result(results, query):
+    def playable(items):
+        return [
+            item for item in items
+            if isinstance(item, dict) and item.get("uri")
+        ]
+
+    artist = next(
+        (
+            item for item in results.get("artists", [])
+            if isinstance(item, dict)
+            if _normalize_media_name(item.get("name", "")) == _normalize_media_name(query)
+        ),
+        None,
+    )
+    if artist:
+        artist_name = _normalize_media_name(artist.get("name", query))
+        artist_playlists = [
+            item for item in playable(results.get("playlists", []))
+            if artist_name in _normalize_media_name(item.get("name", ""))
+        ]
+        leading_artist_playlists = [
+            item for item in artist_playlists
+            if _normalize_media_name(item.get("name", "")).startswith(artist_name)
+        ]
+        if leading_artist_playlists:
+            return leading_artist_playlists[0], "playlist"
+        if artist_playlists:
+            return artist_playlists[0], "playlist"
+        raise MusicAssistantError(
+            f"I couldn't find a playlist for {artist.get('name', query)}."
+        )
+
+    for media_type in ("tracks", "albums", "playlists"):
+        items = playable(results.get(media_type, []))
+        if items:
+            return items[0], media_type[:-1]
+    raise MusicAssistantError(f"I couldn't find {query} in Music Assistant.")
+
+
+def _play_via_music_assistant(intent, controllable_devices, led):
+    """Search Music Assistant and play the best result on its matching player."""
     def fail(message):
         if led:
             led.set_state(AssistantState.FAILURE)
@@ -43,6 +82,8 @@ def _play_via_spotify_search(intent, controllable_devices, led):
     players = [
         device for device in controllable_devices or []
         if (device.get("entity_id") or "").startswith("media_player.")
+        and device.get("platform") == "music_assistant"
+        and device.get("config_entry_id")
     ]
     player = None
     if name := intent.get("media_player_name"):
@@ -52,21 +93,41 @@ def _play_via_spotify_search(intent, controllable_devices, led):
     elif len(players) == 1:
         player = players[0]
     if not player:
-        fail("I couldn't tell which speaker to play on.")
+        fail("I couldn't find a matching Music Assistant speaker.")
         return
 
     try:
-        uri, media_type, title = find_spotify_media(intent["media_search_query"])
-    except SpotifySearchError as exc:
-        logger.warning("Spotify search failed: %s", exc)
+        results = search_music_assistant(
+            intent["media_search_query"], player["config_entry_id"]
+        )
+        item, media_type = _select_music_assistant_result(
+            results, intent["media_search_query"]
+        )
+    except MusicAssistantError as exc:
+        logger.warning("Music Assistant request failed: %s", exc)
         fail(str(exc))
         return
 
-    if not play_ha_media(player["entity_id"], uri, media_type):
+    media_id = item.get("uri")
+    if not media_id:
+        fail("Music Assistant returned a result that can't be played.")
+        return
+    playback_result = play_music_assistant_media(
+        player["entity_id"], media_id, media_type
+    )
+    if playback_result is False:
         fail("Sorry, I couldn't start playback.")
         return
 
-    speak(f"Playing {title} on {player.get('name', 'your speaker')}.")
+    player_name = player.get("name", "your speaker")
+    item_name = item.get("name", intent["media_search_query"])
+    if playback_result is None:
+        speak(
+            f"I sent {item_name} to {player_name}. Music Assistant is taking "
+            "longer than usual to start playback."
+        )
+    else:
+        speak(f"Playing {item_name} on {player_name}.")
     if led:
         led.set_state(AssistantState.SUCCESS)
 
@@ -205,12 +266,12 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
                 led.set_state(AssistantState.SUCCESS)
             return
 
+        if "media_search_query" in intent:
+            _play_via_music_assistant(intent, controllable_devices, led)
+            return
+
         if intent.get("conversation_text"):
             conversation_result = process_ha_conversation(intent["conversation_text"])
-            if intent.get("media_search_query") and _media_search_unsupported(conversation_result):
-                logger.info("Home Assistant can't search media; falling back to Spotify search.")
-                _play_via_spotify_search(intent, controllable_devices, led)
-                return
             speech_text = (
                 conversation_result.get("response", {})
                 .get("speech", {})
@@ -328,4 +389,3 @@ def handle_voice_command(input_device, noise_floor, shutdown_event=None, led=Non
             led.set_state(AssistantState.FAILURE)
         _announce_problem("Sorry, something went wrong while handling that command.")
         raise
-

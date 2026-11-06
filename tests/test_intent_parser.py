@@ -20,3 +20,21 @@ def test_entry_point_uses_deterministic_parser_when_enabled():
         "service": "turn_on",
         "entity_id": "light.living_room",
     }
+
+
+def test_music_search_uses_deterministic_slots_with_ai_parser_enabled():
+    media_intent = {
+        "conversation_text": "play Led Zeppelin on Sonos",
+        "media_search_query": "Led Zeppelin",
+        "media_player_name": "Sonos",
+    }
+
+    with (
+        patch("config.USE_DETERMINISTIC_INTENT", False),
+        patch("intent_parser.parse_intent_deterministic", return_value=media_intent),
+        patch("intent_parser.parse_intent_ai") as parse_ai,
+    ):
+        intent = parse_intent("play Led Zeppelin on Sonos", [])
+
+    assert intent == media_intent
+    parse_ai.assert_not_called()

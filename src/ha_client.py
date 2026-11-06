@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 _AREA_CACHE_TTL_SECONDS = 300
 _area_cache = {}
 _entity_floors = {}
+_entity_platforms = {}
+_entity_config_entry_ids = {}
 _area_cache_expires_at = 0.0
 
 
@@ -152,12 +154,15 @@ def get_ha_weather_forecast(entity_id: str) -> dict | None:
 
 
 def _fetch_entity_areas():
-    global _area_cache, _entity_floors, _area_cache_expires_at
+    global _area_cache, _entity_floors, _entity_platforms
+    global _entity_config_entry_ids, _area_cache_expires_at
 
     if _area_cache_expires_at > time.monotonic():
         return _area_cache
     if not HA_TOKEN:
         _entity_floors = {}
+        _entity_platforms = {}
+        _entity_config_entry_ids = {}
         return {}
 
     connection = None
@@ -191,11 +196,23 @@ def _fetch_entity_areas():
             for entity in entities
             if entity.get("entity_id") and entity.get("area_id") in area_floors
         }
+        _entity_platforms = {
+            entity["entity_id"]: entity["platform"]
+            for entity in entities
+            if entity.get("entity_id") and entity.get("platform")
+        }
+        _entity_config_entry_ids = {
+            entity["entity_id"]: entity["config_entry_id"]
+            for entity in entities
+            if entity.get("entity_id") and entity.get("config_entry_id")
+        }
         _area_cache_expires_at = time.monotonic() + _AREA_CACHE_TTL_SECONDS
         return _area_cache
     except Exception as e:
         logger.debug("Could not load Home Assistant area registry: %s", e)
         _entity_floors = {}
+        _entity_platforms = {}
+        _entity_config_entry_ids = {}
         return {}
     finally:
         if connection is not None:
@@ -245,6 +262,10 @@ def fetch_ha_devices():
                 "name": name,
                 "state": state.get("state")
             }
+            if platform := _entity_platforms.get(entity_id):
+                device["platform"] = platform
+            if config_entry_id := _entity_config_entry_ids.get(entity_id):
+                device["config_entry_id"] = config_entry_id
             if is_controllable_group:
                 device["members"] = members
             if area := entity_areas.get(entity_id):
@@ -262,8 +283,52 @@ def fetch_ha_devices():
 # Alias for backward compatibility if needed
 get_ha_devices = fetch_ha_devices
 
-def play_ha_media(entity_id: str, media_id: str, media_type: str) -> bool:
-    """Ask a Home Assistant media player to play a media ID (e.g. a Spotify URI)."""
+class MusicAssistantError(Exception):
+    """A Music Assistant failure with a message suitable for voice feedback."""
+
+
+def search_music_assistant(query: str, config_entry_id: str) -> dict:
+    """Search the configured Music Assistant provider catalog through Home Assistant."""
+    if not HA_TOKEN:
+        raise MusicAssistantError("Home Assistant isn't configured with an access token.")
+    if not config_entry_id:
+        raise MusicAssistantError(
+            "The Music Assistant player is missing its Home Assistant integration entry."
+        )
+
+    connection = None
+    try:
+        connection = _create_authenticated_websocket()
+        connection.settimeout(15.0)
+        connection.send(json.dumps({
+            "id": 6,
+            "type": "call_service",
+            "domain": "music_assistant",
+            "service": "search",
+            "service_data": {
+                "config_entry_id": config_entry_id,
+                "name": query,
+                "media_type": ["artist", "album", "track", "playlist"],
+            },
+            "return_response": True,
+        }))
+        result = _websocket_result(connection, 6)
+        response = result.get("response") if isinstance(result, dict) else None
+        if not isinstance(response, dict):
+            raise RuntimeError("Music Assistant returned no search results.")
+        return response
+    except Exception as exc:
+        logger.error("Music Assistant search failed for %r: %s", query, exc)
+        raise MusicAssistantError("I couldn't search Music Assistant right now.") from exc
+    finally:
+        if connection is not None:
+            connection.close()
+
+
+def play_music_assistant_media(
+    entity_id: str, media_id: str, media_type: str
+) -> bool | None:
+    """Play a Music Assistant search result on its Home Assistant media-player entity."""
     headers = {
         "Authorization": f"Bearer {HA_TOKEN}",
         "Content-Type": "application/json",
@@ -280,12 +345,20 @@ def play_ha_media(entity_id: str, media_id: str, media_type: str) -> bool:
             json=payload,
             timeout=10.0,
         )
+    except requests.ReadTimeout as e:
+        logger.warning(
+            "Timed out waiting for Music Assistant playback on %s; Home Assistant "
+            "may still be processing the request: %s",
+            entity_id,
+            e,
+        )
+        return None
     except requests.RequestException as e:
-        logger.error("❌ Failed to call media_player.play_media: %s", e)
+        logger.error("❌ Failed to call Music Assistant media playback: %s", e)
         return False
     if response.status_code != 200:
         logger.error(
-            "❌ media_player.play_media failed for %s (HTTP %d): %s",
+            "❌ Music Assistant playback failed for %s (HTTP %d): %s",
             entity_id,
             response.status_code,
             response.text[:300],
@@ -343,4 +416,3 @@ def execute_ha_command(
     except requests.RequestException as e:
         logger.error("❌ Failed to execute Home Assistant command: %s", e)
         return False
-

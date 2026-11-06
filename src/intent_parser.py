@@ -12,7 +12,12 @@ def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
         logger.debug("⚡ Parsing intent via deterministic strategy...")
         return parse_intent_deterministic(transcript, controllable_devices)
 
+    deterministic_intent = parse_intent_deterministic(
+        transcript, controllable_devices
+    )
+    if deterministic_intent and "media_search_query" in deterministic_intent:
+        return deterministic_intent
+
     logger.debug("⚡ Parsing intent via AI strategy...")
     return parse_intent_ai(transcript, controllable_devices)
-
 

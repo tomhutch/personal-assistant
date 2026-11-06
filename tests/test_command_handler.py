@@ -306,55 +306,106 @@ class TestHandleVoiceCommand:
             AssistantState.FAILURE,
         ]
 
-class TestMediaSearchFallback:
+class TestMusicAssistantMediaSearch:
     @pytest.fixture(autouse=True)
     def patches(self, monkeypatch):
         self.speak = MagicMock()
-        self.find = MagicMock(return_value=("spotify:track:1", "track", "Thunderstruck"))
+        self.search = MagicMock(return_value={
+            "artists": [{"uri": "spotify://artist/1", "name": "AC/DC"}],
+            "playlists": [{
+                "uri": "spotify://playlist/1",
+                "name": "AC/DC Greatest Hits",
+            }],
+            "tracks": [],
+            "albums": [],
+        })
         self.play = MagicMock(return_value=True)
         self.announce = MagicMock()
+        self.conversation = MagicMock()
         monkeypatch.setattr("command_handler.speak", self.speak)
-        monkeypatch.setattr("command_handler.find_spotify_media", self.find)
-        monkeypatch.setattr("command_handler.play_ha_media", self.play)
+        monkeypatch.setattr("command_handler.search_music_assistant", self.search)
+        monkeypatch.setattr("command_handler.play_music_assistant_media", self.play)
+        monkeypatch.setattr("command_handler.process_ha_conversation", self.conversation)
         monkeypatch.setattr("command_handler._announce_problem", self.announce)
         monkeypatch.setattr("command_handler.record_utterance", lambda *a, **k: np.zeros(16000, dtype=np.float32))
-        monkeypatch.setattr("command_handler.transcribe_audio", lambda *a, **k: "play Thunderstruck on Sonos")
+        monkeypatch.setattr("command_handler.transcribe_audio", lambda *a, **k: "play ACDC on Sonos")
         monkeypatch.setattr("command_handler.fetch_ha_devices", lambda: [
-            {"entity_id": "media_player.kitchen_kitchen", "name": "Sonos"}
+            {
+                "entity_id": "media_player.kitchen_kitchen",
+                "name": "Sonos",
+                "platform": "sonos",
+                "config_entry_id": "sonos-entry",
+            },
+            {
+                "entity_id": "media_player.kitchen_sonos",
+                "name": "Sonos",
+                "platform": "music_assistant",
+                "config_entry_id": "music-assistant-entry",
+            },
         ])
         monkeypatch.setattr("command_handler.parse_intent", lambda *a: {
-            "conversation_text": "play Thunderstruck on Sonos",
-            "media_search_query": "Thunderstruck",
+            "conversation_text": "play ACDC on Sonos",
+            "media_search_query": "ACDC",
             "media_player_name": "Sonos",
         })
 
-    def test_falls_back_to_spotify_when_home_assistant_cannot_search(self, monkeypatch):
-        monkeypatch.setattr("command_handler.process_ha_conversation", lambda text: {
-            "response": {"response_type": "error", "data": {"code": "failed_to_handle"}}
-        })
-
+    def test_searches_and_plays_playlist_on_music_assistant_entity(self, monkeypatch):
         handle_voice_command(0, noise_floor=0.001)
 
-        self.find.assert_called_once_with("Thunderstruck")
-        self.play.assert_called_once_with("media_player.kitchen_kitchen", "spotify:track:1", "track")
-        self.speak.assert_called_once_with("Playing Thunderstruck on Sonos.")
-
-    def test_home_assistant_success_skips_spotify(self, monkeypatch):
-        monkeypatch.setattr("command_handler.process_ha_conversation", lambda text: {
-            "response": {"response_type": "action_done", "speech": {"plain": {"speech": "Playing"}}}
-        })
-
-        handle_voice_command(0, noise_floor=0.001)
-
-        self.find.assert_not_called()
-        self.speak.assert_called_once_with("Playing")
+        self.search.assert_called_once_with("ACDC", "music-assistant-entry")
+        self.play.assert_called_once_with(
+            "media_player.kitchen_sonos", "spotify://playlist/1", "playlist"
+        )
+        self.speak.assert_called_once_with(
+            "Playing AC/DC Greatest Hits on Sonos."
+        )
+        self.conversation.assert_not_called()
 
     def test_playback_failure_is_announced(self, monkeypatch):
-        monkeypatch.setattr("command_handler.process_ha_conversation", lambda text: {
-            "response": {"response_type": "error", "data": {"code": "failed_to_handle"}}
-        })
         self.play.return_value = False
 
         handle_voice_command(0, noise_floor=0.001)
 
         self.announce.assert_called_once_with("Sorry, I couldn't start playback.")
+
+    def test_playback_timeout_is_reported_as_pending_not_failure(self):
+        self.play.return_value = None
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        self.announce.assert_not_called()
+        self.speak.assert_called_once_with(
+            "I sent AC/DC Greatest Hits to Sonos. Music Assistant is "
+            "taking longer than usual to start playback."
+        )
+
+    def test_artist_query_with_punctuation_selects_matching_artist_playlist(self):
+        from command_handler import _select_music_assistant_result
+
+        results = {
+            "artists": [{"uri": "artist-uri", "name": "AC/DC"}],
+            "tracks": [{"uri": "track-uri", "name": "Enter Sandman"}],
+            "playlists": [
+                {"uri": "unrelated-uri", "name": "Guns n roses, acdc, Metallica"},
+                {"uri": "artist-playlist-uri", "name": "AC/DC Greatest Hits"},
+            ],
+        }
+
+        item, media_type = _select_music_assistant_result(results, "ACDC")
+
+        assert item["uri"] == "artist-playlist-uri"
+        assert media_type == "playlist"
+
+    def test_artist_query_does_not_fall_back_to_unrelated_playlist(self):
+        from command_handler import _select_music_assistant_result
+        from ha_client import MusicAssistantError
+
+        with pytest.raises(MusicAssistantError, match="couldn't find a playlist"):
+            _select_music_assistant_result(
+                {
+                    "artists": [{"uri": "artist-uri", "name": "AC/DC"}],
+                    "tracks": [{"uri": "track-uri", "name": "Enter Sandman"}],
+                    "playlists": [{"uri": "playlist-uri", "name": "Classic Rock Hits"}],
+                },
+                "ACDC",
+            )

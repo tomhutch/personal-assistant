@@ -1,5 +1,6 @@
 import pytest
 import json
+import requests
 import ha_client
 from unittest.mock import patch, MagicMock
 from ha_client import (
@@ -29,7 +30,12 @@ class TestHomeAssistantClient:
                 "id": 1,
                 "type": "result",
                 "success": True,
-                "result": [{"entity_id": "light.living_room", "area_id": "living"}],
+                "result": [{
+                    "entity_id": "light.living_room",
+                    "area_id": "living",
+                    "platform": "music_assistant",
+                    "config_entry_id": "entry-id",
+                }],
             }),
             json.dumps({
                 "id": 2,
@@ -48,10 +54,62 @@ class TestHomeAssistantClient:
 
         assert _fetch_entity_areas() == {"light.living_room": "Living Room"}
         assert ha_client._entity_floors == {"light.living_room": "Downstairs"}
+        assert ha_client._entity_platforms == {
+            "light.living_room": "music_assistant"
+        }
+        assert ha_client._entity_config_entry_ids == {
+            "light.living_room": "entry-id"
+        }
         mock_create_connection.assert_called_once_with(
             "ws://ha.example:8123/api/websocket", timeout=2.0
         )
         connection.close.assert_called_once()
+
+    @patch("ha_client._websocket_result", return_value={"response": {"artists": []}})
+    @patch("ha_client._create_authenticated_websocket")
+    def test_search_music_assistant_calls_search_service(
+        self, mock_connection, mock_result, monkeypatch
+    ):
+        monkeypatch.setattr("ha_client.HA_TOKEN", "test-token")
+        connection = MagicMock()
+        mock_connection.return_value = connection
+
+        assert ha_client.search_music_assistant("Led Zeppelin", "entry-id") == {
+            "artists": []
+        }
+
+        request = json.loads(connection.send.call_args.args[0])
+        assert request["domain"] == "music_assistant"
+        assert request["service"] == "search"
+        assert request["service_data"] == {
+            "config_entry_id": "entry-id",
+            "name": "Led Zeppelin",
+            "media_type": ["artist", "album", "track", "playlist"],
+        }
+        connection.settimeout.assert_called_once_with(15.0)
+        connection.close.assert_called_once()
+
+    @patch("ha_client.requests.post")
+    def test_play_music_assistant_media_targets_ma_player(self, mock_post):
+        mock_post.return_value.status_code = 200
+
+        assert ha_client.play_music_assistant_media(
+            "media_player.kitchen_sonos", "spotify://playlist/1", "playlist"
+        )
+
+        assert mock_post.call_args.kwargs["json"] == {
+            "entity_id": "media_player.kitchen_sonos",
+            "media_content_id": "spotify://playlist/1",
+            "media_content_type": "playlist",
+        }
+
+    @patch("ha_client.requests.post", side_effect=requests.ReadTimeout)
+    def test_play_music_assistant_media_read_timeout_is_pending(self, mock_post, caplog):
+        assert ha_client.play_music_assistant_media(
+            "media_player.kitchen_sonos", "spotify://playlist/1", "playlist"
+        ) is None
+
+        assert "may still be processing the request" in caplog.text
 
     @patch("ha_client._fetch_entity_areas", return_value={"light.living_room": "Living Room"})
     @patch("requests.get")
