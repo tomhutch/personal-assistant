@@ -81,6 +81,16 @@ level. This is an energy threshold, not speech recognition: music louder than
 the threshold can keep recording open until the safety limit, and raising it
 too far can miss quiet speech.
 
+### Timer alarms
+
+When a local timer finishes, its chime repeats for up to 60 seconds. To silence
+it sooner, say "Hey Jarvis, stop" (also supported: "stop it", "stop the timer",
+"stop timer", "dismiss", or "silence"). The assistant must detect the wake word
+and transcribe the command; saying "stop" without the wake word is not supported.
+The current command pipeline also requires Home Assistant device discovery to
+succeed, even though stopping the alarm itself is local. Chiming may make the
+wake word or command harder to hear.
+
 ### Start the Llama Server (Qwen 2.5 0.5B SLM, port 8080)
 
 ```bash
