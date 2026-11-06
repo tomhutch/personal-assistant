@@ -379,6 +379,53 @@ class TestMusicAssistantMediaSearch:
             "taking longer than usual to start playback."
         )
 
+    def test_explicit_album_search_plays_album_not_track(self, monkeypatch):
+        monkeypatch.setattr("command_handler.parse_intent", lambda *a: {
+            "conversation_text": "play the album with you here on Sonos",
+            "media_search_query": "with you here",
+            "media_search_type": "album",
+            "media_player_name": "Sonos",
+        })
+        self.search.return_value = {
+            "tracks": [{"uri": "wrong-track", "name": "Here Without You"}],
+            "albums": [{"uri": "album-uri", "name": "With You Here"}],
+        }
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        self.search.assert_called_once_with("with you here", "music-assistant-entry", "album")
+        self.play.assert_called_once_with("media_player.kitchen_sonos", "album-uri", "album")
+        self.speak.assert_called_once_with("Playing With You Here on Sonos.")
+
+    def test_explicit_album_search_does_not_fall_back_to_track(self, monkeypatch):
+        monkeypatch.setattr("command_handler.parse_intent", lambda *a: {
+            "conversation_text": "play the album with you here on Sonos",
+            "media_search_query": "with you here",
+            "media_search_type": "album",
+            "media_player_name": "Sonos",
+        })
+        self.search.return_value = {
+            "tracks": [{"uri": "wrong-track", "name": "Here Without You"}],
+            "albums": [],
+        }
+
+        handle_voice_command(0, noise_floor=0.001)
+
+        self.play.assert_not_called()
+        self.announce.assert_called_once_with(
+            "I couldn't find the album with you here in Music Assistant."
+        )
+
+    def test_explicit_artist_uses_returned_artist_and_playlist(self):
+        from command_handler import _select_music_assistant_result
+
+        results = {
+            "artists": [{"uri": "artist-uri", "name": "AC/DC"}],
+            "playlists": [{"uri": "playlist-uri", "name": "AC/DC Greatest Hits"}],
+        }
+        item, media_type = _select_music_assistant_result(results, "ACDC", "artist")
+        assert (item["uri"], media_type) == ("playlist-uri", "playlist")
+
     def test_artist_query_with_punctuation_selects_matching_artist_playlist(self):
         from command_handler import _select_music_assistant_result
 

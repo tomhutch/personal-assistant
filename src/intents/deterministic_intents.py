@@ -367,9 +367,16 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
     try:
         result = None
         first_result = None
+        first_typed_media_result = None
         for candidate in recognize_all(transcript, intents, slot_lists=slot_lists):
             if first_result is None:
                 first_result = candidate
+            if (
+                first_typed_media_result is None
+                and candidate.intent.name == "HassMediaSearchAndPlay"
+                and candidate.entities.get("media_class")
+            ):
+                first_typed_media_result = candidate
             name_entity = candidate.entities.get("name")
             if name_entity and _find_matching_device(
                 transcript,
@@ -381,7 +388,7 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
                 result = candidate
                 break
         if result is None:
-            result = first_result
+            result = first_typed_media_result or first_result
     except Exception:
         logger.debug("Deterministic parser hit a HassIL match failure; falling back to alias matching for %r", transcript)
         result = None
@@ -448,6 +455,12 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
 
     if intent_name == "HassMediaSearchAndPlay":
         intent = {"conversation_text": transcript, "intent_name": intent_name}
+        media_class = result.entities.get("media_class")
+        if media_class:
+            media_type = str(media_class.value)
+            if media_type not in {"artist", "album", "track", "playlist"}:
+                return intent
+            intent["media_search_type"] = media_type
         if search_entity := result.entities.get("search_query"):
             intent["media_search_query"] = str(search_entity.value).strip()
         if name_entity := result.entities.get("name"):

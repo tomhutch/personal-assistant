@@ -222,6 +222,12 @@ queries play their matching result. Link Spotify as a provider in Music
 Assistant. No Spotify developer credentials are needed in this app's `.env`.
 If Home Assistant exposes the same speaker through multiple integrations, the
 assistant selects the entity registered by Music Assistant for search playback.
+To search a specific type, say for example "play the album Back in Black on
+Sonos", "play the song Thunderstruck on Sonos", or "play the playlist Classic
+Rock on Sonos". Explicit artist searches still play a matching artist playlist.
+Without a type, track results are preferred unless the query matches an artist.
+Results are ranked by the provider and can be approximate; if no result of the
+requested type is found, the assistant does not fall back to another type.
 
 ### Managing the stack
 

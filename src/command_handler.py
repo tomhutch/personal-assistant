@@ -32,22 +32,24 @@ def _normalize_media_name(value):
     return re.sub(r"[\W_]+", "", str(value).casefold())
 
 
-def _select_music_assistant_result(results, query):
+def _select_music_assistant_result(results, query, media_type=None):
     def playable(items):
         return [
             item for item in items
             if isinstance(item, dict) and item.get("uri")
         ]
 
+    artists = [item for item in results.get("artists", []) if isinstance(item, dict)]
     artist = next(
         (
-            item for item in results.get("artists", [])
-            if isinstance(item, dict)
+            item for item in artists
             if _normalize_media_name(item.get("name", "")) == _normalize_media_name(query)
         ),
         None,
     )
-    if artist:
+    if media_type == "artist" and not artist and artists:
+        artist = artists[0]
+    if (media_type is None or media_type == "artist") and artist:
         artist_name = _normalize_media_name(artist.get("name", query))
         artist_playlists = [
             item for item in playable(results.get("playlists", []))
@@ -65,10 +67,17 @@ def _select_music_assistant_result(results, query):
             f"I couldn't find a playlist for {artist.get('name', query)}."
         )
 
-    for media_type in ("tracks", "albums", "playlists"):
-        items = playable(results.get(media_type, []))
+    if media_type == "artist":
+        raise MusicAssistantError(f"I couldn't find the artist {query} in Music Assistant.")
+    result_types = (media_type,) if media_type else ("track", "album", "playlist")
+    for result_type in result_types:
+        items = playable(results.get(f"{result_type}s", []))
         if items:
-            return items[0], media_type[:-1]
+            return items[0], result_type
+    if media_type:
+        raise MusicAssistantError(
+            f"I couldn't find the {media_type} {query} in Music Assistant."
+        )
     raise MusicAssistantError(f"I couldn't find {query} in Music Assistant.")
 
 
@@ -97,11 +106,17 @@ def _play_via_music_assistant(intent, controllable_devices, led):
         return
 
     try:
-        results = search_music_assistant(
-            intent["media_search_query"], player["config_entry_id"]
-        )
+        requested_type = intent.get("media_search_type")
+        if requested_type:
+            results = search_music_assistant(
+                intent["media_search_query"], player["config_entry_id"], requested_type
+            )
+        else:
+            results = search_music_assistant(
+                intent["media_search_query"], player["config_entry_id"]
+            )
         item, media_type = _select_music_assistant_result(
-            results, intent["media_search_query"]
+            results, intent["media_search_query"], requested_type
         )
     except MusicAssistantError as exc:
         logger.warning("Music Assistant request failed: %s", exc)

@@ -287,7 +287,9 @@ class MusicAssistantError(Exception):
     """A Music Assistant failure with a message suitable for voice feedback."""
 
 
-def search_music_assistant(query: str, config_entry_id: str) -> dict:
+def search_music_assistant(
+    query: str, config_entry_id: str, media_type: str | None = None
+) -> dict:
     """Search the configured Music Assistant provider catalog through Home Assistant."""
     if not HA_TOKEN:
         raise MusicAssistantError("Home Assistant isn't configured with an access token.")
@@ -295,6 +297,14 @@ def search_music_assistant(query: str, config_entry_id: str) -> dict:
         raise MusicAssistantError(
             "The Music Assistant player is missing its Home Assistant integration entry."
         )
+    if media_type not in {None, "artist", "album", "track", "playlist"}:
+        raise MusicAssistantError(f"Unsupported music search type: {media_type}.")
+
+    media_types = (
+        ["artist", "playlist"] if media_type == "artist"
+        else [media_type] if media_type
+        else ["artist", "album", "track", "playlist"]
+    )
 
     connection = None
     try:
@@ -308,7 +318,7 @@ def search_music_assistant(query: str, config_entry_id: str) -> dict:
             "service_data": {
                 "config_entry_id": config_entry_id,
                 "name": query,
-                "media_type": ["artist", "album", "track", "playlist"],
+                "media_type": media_types,
             },
             "return_response": True,
         }))

@@ -65,6 +65,29 @@ class TestHomeAssistantClient:
         )
         connection.close.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ("media_type", "expected_types"),
+        [
+            ("album", ["album"]),
+            ("track", ["track"]),
+            ("playlist", ["playlist"]),
+            ("artist", ["artist", "playlist"]),
+        ],
+    )
+    @patch("ha_client._websocket_result", return_value={"response": {}})
+    @patch("ha_client._create_authenticated_websocket")
+    def test_search_music_assistant_uses_requested_type(
+        self, mock_connection, mock_result, media_type, expected_types, monkeypatch
+    ):
+        monkeypatch.setattr("ha_client.HA_TOKEN", "test-token")
+        connection = MagicMock()
+        mock_connection.return_value = connection
+
+        ha_client.search_music_assistant("test query", "entry-id", media_type)
+
+        request = json.loads(connection.send.call_args.args[0])
+        assert request["service_data"]["media_type"] == expected_types
+
     @patch("ha_client._websocket_result", return_value={"response": {"artists": []}})
     @patch("ha_client._create_authenticated_websocket")
     def test_search_music_assistant_calls_search_service(

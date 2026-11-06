@@ -1,3 +1,5 @@
+import pytest
+
 from intents.deterministic_intents import (
     _load_intents,
     parse_intent_deterministic,
@@ -265,3 +267,30 @@ def test_media_search_intent_exposes_query_and_player_name():
     assert intent["media_search_query"] == "Thunderstruck"
     assert intent["media_player_name"] == "Sonos"
     assert intent["conversation_text"] == "play Thunderstruck on Sonos"
+
+
+@pytest.mark.parametrize(
+    ("phrase", "query", "media_type"),
+    [
+        ("play the album with you here on Sonos", "with you here", "album"),
+        ("play the song thunderstruck on Sonos", "thunderstruck", "track"),
+        ("play the track thunderstruck on Sonos", "thunderstruck", "track"),
+        ("play the artist ACDC on Sonos", "ACDC", "artist"),
+        ("play the playlist rock on Sonos", "rock", "playlist"),
+        ("play the album back in black", "back in black", "album"),
+    ],
+)
+def test_media_search_preserves_explicit_media_class(phrase, query, media_type):
+    devices = [{"entity_id": "media_player.kitchen_sonos", "name": "Sonos"}]
+    intent = parse_intent_deterministic(phrase, devices)
+    assert intent["media_search_query"] == query
+    assert intent["media_search_type"] == media_type
+
+
+def test_non_music_media_class_delegates_to_home_assistant():
+    phrase = "play the movie heat on Sonos"
+    devices = [{"entity_id": "media_player.kitchen_sonos", "name": "Sonos"}]
+    assert parse_intent_deterministic(phrase, devices) == {
+        "conversation_text": phrase,
+        "intent_name": "HassMediaSearchAndPlay",
+    }
