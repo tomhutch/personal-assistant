@@ -225,6 +225,10 @@ assistant selects the entity registered by Music Assistant for search playback.
 
 ### Managing the stack
 
+On Ctrl+C or SIGTERM, the assistant attempts a graceful shutdown. If cleanup
+is still blocked after 10 seconds, it logs a timeout and exits forcibly with a
+nonzero status.
+
 ```bash
 systemctl status python-app llama-server whisper-server   # status of all three
 sudo journalctl -u python-app -f                          # follow logs (swap the unit name)

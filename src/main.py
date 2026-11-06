@@ -1,7 +1,9 @@
 import logging
+import os
 import signal
 import sys
 import threading
+import time
 import sounddevice as sd
 from config import LOG_LEVEL, SAMPLE_RATE
 from audio import RollingAudioBuffer, WakeWordManager, find_input_device
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Global shutdown flag for graceful termination
 shutdown_event = threading.Event()
+SHUTDOWN_GRACE_SECONDS = 10.0
 
 def signal_handler(sig, frame):
     """Handles SIGINT (Ctrl+C) and SIGTERM gracefully."""
@@ -75,9 +78,26 @@ def main_loop():
 
     logger.info("🛑 Assistant stopped cleanly.")
 
-if __name__ == "__main__":
+
+def _shutdown_watchdog():
+    """Force an exit if native cleanup never returns after a shutdown signal."""
+    shutdown_event.wait()
+    time.sleep(SHUTDOWN_GRACE_SECONDS)
+    try:
+        os.write(2, b"Shutdown timed out; forcing exit.\n")
+    finally:
+        os._exit(1)
+
+
+def run():
+    threading.Thread(
+        target=_shutdown_watchdog, name="shutdown-watchdog", daemon=True
+    ).start()
     try:
         main_loop()
     except KeyboardInterrupt:
         logger.info("🛑 Assistant stopped cleanly.")
 
+
+if __name__ == "__main__":
+    run()
