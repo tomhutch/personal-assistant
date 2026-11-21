@@ -80,6 +80,9 @@ exist in, or be understood by, the configured Home Assistant instance.
 ## Handling flow
 
 HassIL matches the transcript against the local, pinned sentence corpus.
+Each deterministic sentence accepts an optional leading configured wake phrase
+or `Hey`. When matched, this prefix is removed from text delegated to Home
+Assistant. The AI parser receives the original transcript.
 Basic turn-on/off and numeric light-brightness commands are validated against
 the discovered entities and sent directly to Home Assistant. Other supported
 intents are passed to Home Assistant's `conversation.process` service, which

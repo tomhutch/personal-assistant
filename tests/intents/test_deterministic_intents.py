@@ -280,6 +280,7 @@ def test_deterministic_intent_adds_custom_sentence_templates(tmp_path, monkeypat
 
     try:
         intent = parse_intent_deterministic("illuminate the living room light", devices)
+        prefixed_intent = parse_intent_deterministic("Hey Jarvis, illuminate the living room light", devices)
     finally:
         _load_intents.cache_clear()
 
@@ -288,6 +289,31 @@ def test_deterministic_intent_adds_custom_sentence_templates(tmp_path, monkeypat
         "service": "turn_on",
         "entity_id": "light.living_room",
     }
+    assert prefixed_intent == intent
+
+
+def test_custom_sentence_can_start_with_literal_wake_phrase(tmp_path, monkeypatch):
+    custom_templates = tmp_path / "custom_intents.yaml"
+    custom_templates.write_text(
+        "language: en\n"
+        "intents:\n"
+        "  HassTurnOn:\n"
+        "    data:\n"
+        "      - sentences:\n"
+        "          - 'hey jarvis illuminate [the] {name}'\n"
+        "        name_domains: [light]\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("intents.deterministic_intents._CUSTOM_INTENTS_FILE", custom_templates)
+    _load_intents.cache_clear()
+    devices = [{"entity_id": "light.lamp", "name": "Lamp"}]
+
+    try:
+        intent = parse_intent_deterministic("Hey Jarvis illuminate the lamp", devices)
+    finally:
+        _load_intents.cache_clear()
+
+    assert intent == {"domain": "light", "service": "turn_on", "entity_id": "light.lamp"}
 
 
 def test_deterministic_intent_supports_group_entities():

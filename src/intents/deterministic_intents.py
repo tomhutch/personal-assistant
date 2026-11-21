@@ -9,6 +9,7 @@ from hassil import Intents
 from hassil.intents import RangeSlotList, RangeType, TextSlotList, WildcardSlotList
 from hassil.recognize import recognize_all
 import yaml
+import config as app_config
 
 logger = logging.getLogger(__name__)
 _SUPPORTED_ENTITY_DOMAINS = {
@@ -187,6 +188,9 @@ def _build_slot_lists(controllable_devices: list) -> dict[str, Any]:
         "name": names,
         "area": areas,
         "floor": TextSlotList.from_strings(sorted(floor_values, key=len, reverse=True)),
+        "assistant_wake_prefix": TextSlotList.from_strings(
+            list(dict.fromkeys((app_config.WAKE_WORD_MODEL.replace("_", " "), "hey")))
+        ),
     }
     slot_lists.update({
         name: TextSlotList.from_tuples(
@@ -363,6 +367,12 @@ def _load_intents() -> Intents:
             target_intent = intents_data["intents"].setdefault(intent_name, {"data": []})
             target_intent["data"].extend(copy.deepcopy(custom_intent.get("data", [])))
 
+    for intent_data in intents_data["intents"].values():
+        for block in intent_data["data"]:
+            block["sentences"] = [
+                "[{assistant_wake_prefix}] " + sentence for sentence in block["sentences"]
+            ]
+
     return Intents.from_dict(intents_data)
 
 
@@ -404,6 +414,10 @@ def parse_intent_deterministic(transcript: str, controllable_devices: list) -> d
     if not result:
         logger.debug("Deterministic parser did not match transcript.")
         return None
+
+    if prefix := result.entities.get("assistant_wake_prefix"):
+        if prefix.text_span is not None:
+            transcript = transcript[prefix.text_span[1]:].lstrip(" \t\r\n,")
 
     intent_name = result.intent.name
     if intent_name in _LOCAL_TIMER_INTENTS:

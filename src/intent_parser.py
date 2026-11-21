@@ -8,13 +8,12 @@ logger = logging.getLogger(__name__)
 
 def parse_intent(transcript: str, controllable_devices: list) -> dict | None:
     """Entry point for the configured smart-home intent strategy."""
+    deterministic_intent = parse_intent_deterministic(transcript, controllable_devices)
+
     if app_config.USE_DETERMINISTIC_INTENT:
         logger.debug("⚡ Parsing intent via deterministic strategy...")
-        return parse_intent_deterministic(transcript, controllable_devices)
+        return deterministic_intent
 
-    deterministic_intent = parse_intent_deterministic(
-        transcript, controllable_devices
-    )
     if deterministic_intent and (
         "media_search_query" in deterministic_intent
         or "media_control_entity_id" in deterministic_intent
