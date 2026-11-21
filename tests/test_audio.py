@@ -177,6 +177,88 @@ class TestListenForWakeWord:
         assert triggered is False
 
 class TestRecordUtterance:
+    @pytest.fixture(autouse=True)
+    def use_rms_detection(self, monkeypatch):
+        monkeypatch.setattr("audio.COMMAND_VAD_THRESHOLD", 0)
+
+    @patch("audio.VAD")
+    @patch("audio.sd.InputStream")
+    def test_vad_stops_after_speech_despite_loud_background(
+        self, mock_input_stream_cls, mock_vad_cls, monkeypatch
+    ):
+        monkeypatch.setattr("audio.COMMAND_VAD_THRESHOLD", 0.5)
+        vad = mock_vad_cls.return_value
+        vad.predict.side_effect = [0.8] * 10 + [0.1] * 20
+        stream = mock_input_stream_cls.return_value.__enter__.return_value
+        samples = int(SAMPLE_RATE * 0.12)
+        stream.read.return_value = (np.full((samples, 1), 0.02, dtype=np.float32), False)
+
+        result = record_utterance(0, 0.001)
+
+        assert len(result) == samples * 19
+        assert vad.predict.call_count == 19
+        assert vad.predict.call_args.kwargs == {"frame_size": 480}
+        assert vad.predict.call_args.args[0].dtype == np.int16
+
+    @patch("audio.VAD")
+    @patch("audio.sd.InputStream")
+    def test_vad_ignores_noise_until_no_speech_timeout(
+        self, mock_input_stream_cls, mock_vad_cls, monkeypatch
+    ):
+        monkeypatch.setattr("audio.COMMAND_VAD_THRESHOLD", 0.5)
+        mock_vad_cls.return_value.predict.return_value = 0.1
+        stream = mock_input_stream_cls.return_value.__enter__.return_value
+        samples = int(SAMPLE_RATE * 0.12)
+        stream.read.return_value = (np.full((samples, 1), 0.02, dtype=np.float32), False)
+
+        result = record_utterance(0, 0.001)
+
+        assert len(result) == SAMPLE_RATE * 3
+        assert stream.read.call_count == 25
+
+    @patch("audio.VAD")
+    @patch("audio.sd.InputStream")
+    def test_vad_preserves_short_pauses(self, mock_input_stream_cls, mock_vad_cls, monkeypatch):
+        monkeypatch.setattr("audio.COMMAND_VAD_THRESHOLD", 0.5)
+        mock_vad_cls.return_value.predict.side_effect = [0.8] * 10 + [0.1] * 8 + [0.5] + [0.1] * 20
+        stream = mock_input_stream_cls.return_value.__enter__.return_value
+        samples = int(SAMPLE_RATE * 0.12)
+        stream.read.return_value = (np.zeros((samples, 1), dtype=np.float32), False)
+
+        result = record_utterance(0, 0.001)
+
+        assert len(result) == samples * 28
+
+    @patch("audio.VAD")
+    @patch("audio.sd.InputStream")
+    def test_vad_respects_safety_limit_and_pads_final_partial_frame(
+        self, mock_input_stream_cls, mock_vad_cls, monkeypatch
+    ):
+        monkeypatch.setattr("audio.COMMAND_VAD_THRESHOLD", 0.5)
+        vad = mock_vad_cls.return_value
+        vad.predict.return_value = 0.9
+        stream = mock_input_stream_cls.return_value.__enter__.return_value
+        stream.read.side_effect = lambda samples: (np.zeros((samples, 1), dtype=np.float32), False)
+
+        result = record_utterance(0, 0.001)
+
+        assert len(result) == SAMPLE_RATE * 10
+        assert stream.read.call_args.args[0] == 640
+        assert len(vad.predict.call_args.args[0]) == 960
+
+    @patch("audio.VAD")
+    @patch("audio.sd.InputStream")
+    def test_vad_initialization_failure_is_not_silently_ignored(
+        self, mock_input_stream_cls, mock_vad_cls, monkeypatch
+    ):
+        monkeypatch.setattr("audio.COMMAND_VAD_THRESHOLD", 0.5)
+        mock_vad_cls.side_effect = RuntimeError("VAD initialization failed")
+
+        with pytest.raises(RuntimeError, match="VAD initialization failed"):
+            record_utterance(0, 0.001)
+
+        mock_input_stream_cls.assert_not_called()
+
     @patch("audio.sd.InputStream")
     def test_cancel_event_stops_recording_between_reads(self, mock_input_stream_cls):
         mock_stream = MagicMock()
@@ -202,14 +284,14 @@ class TestRecordUtterance:
         chunk_samples = int(SAMPLE_RATE * 0.1)
         speech = np.full((chunk_samples, 1), 0.02, dtype=np.float32)
         quiet = np.full((chunk_samples, 1), 0.002, dtype=np.float32)
-        blocks = [speech] * 30 + [quiet] * 10 + [speech] * 10 + [quiet] * 20
+        blocks = [speech] * 30 + [quiet] * 9 + [speech] * 10 + [quiet] * 20
         mock_stream.read.side_effect = [(block, False) for block in blocks]
         mock_input_stream_cls.return_value.__enter__.return_value = mock_stream
 
         audio_result = record_utterance(0, 0.001)
 
-        assert len(audio_result) == chunk_samples * 65
-        np.testing.assert_array_equal(audio_result, np.concatenate([b[:, 0] for b in blocks[:65]]))
+        assert len(audio_result) == chunk_samples * 59
+        np.testing.assert_array_equal(audio_result, np.concatenate([b[:, 0] for b in blocks[:59]]))
         mock_input_stream_cls.assert_called_once_with(
             device=0, samplerate=SAMPLE_RATE, channels=1, dtype='float32'
         )
@@ -224,7 +306,7 @@ class TestRecordUtterance:
 
         audio_result = record_utterance(0, 0.01)
 
-        assert len(audio_result) == chunk_samples * 25
+        assert len(audio_result) == chunk_samples * 20
 
     @patch("audio.sd.InputStream")
     def test_continuous_sound_above_threshold_stops_at_safety_limit(self, mock_input_stream_cls):
@@ -249,7 +331,7 @@ class TestRecordUtterance:
 
         audio_result = record_utterance(0, 0.001)
 
-        assert len(audio_result) == chunk_samples * 25
+        assert len(audio_result) == chunk_samples * 20
 
     @patch("audio.sd.InputStream")
     def test_scenario_no_speech_timeout(self, mock_input_stream_cls):

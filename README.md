@@ -83,11 +83,16 @@ subsequent command recording.
 
 ### Command recording
 
-After the wake word, recording continues while sound exceeds the speech energy
-threshold and stops after 1.5 seconds below it. It also stops after three
-seconds if no speech is detected, or after ten seconds total as a safety limit.
+After the wake word, Silero voice activity detection (VAD) determines when the
+command contains speech. Recording stops after at least 1 second without detected
+speech (checked per audio block), after three seconds if no speech is detected,
+or after ten seconds total as a safety limit. Set `COMMAND_VAD_THRESHOLD` between `0` and `1`
+(default `0.5`): higher values require stronger evidence of speech and may
+miss quiet speech. Background voices or music can still be classified as speech.
+This setting is independent of the wake-word VAD threshold.
 
-The minimum RMS threshold defaults to `0.003` on normalized microphone samples.
+Set `COMMAND_VAD_THRESHOLD=0` to use the previous energy-based detection
+instead. The minimum RMS threshold defaults to `0.003` on normalized microphone samples.
 Set `COMMAND_MIN_SPEECH_RMS` in the assistant's environment to a positive number
 to adjust it: increase it if quiet background noise keeps recording open, or
 decrease it if speech is being missed. The effective threshold is the higher of

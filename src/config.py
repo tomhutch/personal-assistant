@@ -26,10 +26,13 @@ if not math.isfinite(WAKE_WORD_VAD_THRESHOLD) or not 0 <= WAKE_WORD_VAD_THRESHOL
 # Command recording configuration
 COMMAND_MAX_DURATION = 10.0         # Hard safety limit for command recording in seconds
 COMMAND_SPEECH_MULTIPLIER = 1.8     # Multiplier above noise floor to detect speech
+COMMAND_VAD_THRESHOLD = float(os.getenv("COMMAND_VAD_THRESHOLD", "0.5"))
+if not math.isfinite(COMMAND_VAD_THRESHOLD) or not 0 <= COMMAND_VAD_THRESHOLD <= 1:
+    raise ValueError("COMMAND_VAD_THRESHOLD must be between 0 and 1")
 COMMAND_MIN_SPEECH_RMS = float(os.getenv("COMMAND_MIN_SPEECH_RMS", "0.003"))
 if not math.isfinite(COMMAND_MIN_SPEECH_RMS) or COMMAND_MIN_SPEECH_RMS <= 0:
     raise ValueError("COMMAND_MIN_SPEECH_RMS must be a positive finite number")
-COMMAND_SILENCE_DURATION = 1.5      # Quiet time after speech before ending the command
+COMMAND_SILENCE_DURATION = 1.0      # Quiet time after speech before ending the command
 
 # Intent Parsing
 SLM_TIMEOUT_SECONDS = 10.0

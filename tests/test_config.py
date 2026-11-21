@@ -91,3 +91,45 @@ def test_invalid_wake_word_threshold_is_rejected(name, value):
     )
     assert result.returncode != 0
     assert name in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(None, "0.5"), ("0", "0.0"), ("0.3", "0.3"), ("1", "1.0")],
+)
+def test_command_vad_threshold_environment(value, expected):
+    env = os.environ.copy()
+    if value is None:
+        env.pop("COMMAND_VAD_THRESHOLD", None)
+    else:
+        env["COMMAND_VAD_THRESHOLD"] = value
+    result = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import sys; sys.path.insert(0, sys.argv[1]); import config; print(config.COMMAND_VAD_THRESHOLD)",
+            str(Path(__file__).resolve().parents[1] / "src"),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize("value", ["-0.1", "1.1", "nan", "inf"])
+def test_invalid_command_vad_threshold_is_rejected(value):
+    env = os.environ.copy()
+    env["COMMAND_VAD_THRESHOLD"] = value
+    result = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import sys; sys.path.insert(0, sys.argv[1]); import config",
+            str(Path(__file__).resolve().parents[1] / "src"),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "COMMAND_VAD_THRESHOLD" in result.stderr

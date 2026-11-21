@@ -5,10 +5,12 @@ import threading
 import queue
 from collections import deque
 from openwakeword.model import Model
+from openwakeword.vad import VAD
 from config import (
     SAMPLE_RATE,
     COMMAND_MAX_DURATION,
     COMMAND_SPEECH_MULTIPLIER,
+    COMMAND_VAD_THRESHOLD,
     COMMAND_MIN_SPEECH_RMS,
     COMMAND_SILENCE_DURATION,
     WAKE_WORD_MODEL,
@@ -112,7 +114,7 @@ def record_utterance(input_device, noise_floor, cancel_event=None):
     logger.debug("🎤 Command mode active. Speak your command...")
     speech_threshold = max(noise_floor * COMMAND_SPEECH_MULTIPLIER, COMMAND_MIN_SPEECH_RMS)
     chunks = []
-    chunk_duration = 0.1
+    chunk_duration = 0.12 if COMMAND_VAD_THRESHOLD > 0 else 0.1
     chunk_samples = int(SAMPLE_RATE * chunk_duration)
     max_samples = int(SAMPLE_RATE * COMMAND_MAX_DURATION)
     silence_samples = int(SAMPLE_RATE * COMMAND_SILENCE_DURATION)
@@ -127,7 +129,11 @@ def record_utterance(input_device, noise_floor, cancel_event=None):
     if cancel_event and cancel_event.is_set():
         return np.array([], dtype=np.float32)
 
-    logger.debug("Command speech RMS threshold: %.4f", speech_threshold)
+    vad = VAD() if COMMAND_VAD_THRESHOLD > 0 else None
+    if vad:
+        logger.debug("Command speech VAD threshold: %.4f", COMMAND_VAD_THRESHOLD)
+    else:
+        logger.debug("Command speech RMS threshold: %.4f", speech_threshold)
     with sd.InputStream(device=input_device, samplerate=SAMPLE_RATE, channels=1, dtype='float32') as stream:
         while (
             total_samples < max_samples
@@ -140,8 +146,17 @@ def record_utterance(input_device, noise_floor, cancel_event=None):
             chunks.append(block)
             total_samples += len(block)
             
-            rms = np.sqrt(np.mean(block**2))
-            if rms > speech_threshold:
+            if vad:
+                audio_int16 = (np.clip(block, -1.0, 1.0) * 32767).astype(np.int16)
+                frame_size = 480
+                padding = -len(audio_int16) % frame_size
+                if padding:
+                    audio_int16 = np.pad(audio_int16, (0, padding))
+                speech_active = vad.predict(audio_int16, frame_size=frame_size) >= COMMAND_VAD_THRESHOLD
+            else:
+                rms = np.sqrt(np.mean(block**2))
+                speech_active = rms > speech_threshold
+            if speech_active:
                 speech_detected = True
                 quiet_samples = 0
             elif speech_detected:
