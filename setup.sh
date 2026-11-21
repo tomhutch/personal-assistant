@@ -134,9 +134,14 @@ echo "Found and verified ./${APP_BIN}"
 
 echo "=== 7. Preparing .env ==="
 if [ ! -f .env ]; then
-    cp .env.example .env
+    if ! grep -qx 'WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION=false' .env.example; then
+        echo "ERROR: expected Speex setting not found in .env.example." >&2
+        exit 1
+    fi
+    # Enable Speex noise suppression in the .env file (only available on Linux, must be false on macOS)
+    sed 's/^WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION=false$/WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION=true/' .env.example > .env
     chmod 600 .env
-    echo "Created .env from .env.example."
+    echo "Created .env from .env.example with Speex noise suppression enabled."
     echo ">>> EDIT .env AND SET TOKENS/CONFIG BEFORE CONTROLLING SERVICES."
 else
     echo ".env already exists, leaving it untouched."

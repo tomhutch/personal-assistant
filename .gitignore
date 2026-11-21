@@ -1,3 +1,5 @@
+.vscode/
+
 # Secrets - never commit the real environment file
 .env
 

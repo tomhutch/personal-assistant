@@ -27,7 +27,7 @@ RUN test -d vendor/ohf-voice-intents/sentences/en \
 
 # Bundle into a single executable, collecting all assets
 RUN pyinstaller --onefile --name personal-assistant \
-    --collect-all openwakeword --collect-all piper \
+    --collect-all openwakeword --collect-all piper --collect-all speexdsp_ns \
     --collect-all libusb_package --paths src \
     --add-data "src/intents/custom_intents.yaml:intents" \
     --add-data "sounds:sounds" \

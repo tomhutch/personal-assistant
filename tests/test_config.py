@@ -29,3 +29,65 @@ def test_log_transcripts_environment(value, expected):
         check=True,
     )
     assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "expected"),
+    [
+        ("WAKE_WORD_CONFIDENCE_THRESHOLD", None, "0.5"),
+        ("WAKE_WORD_CONFIDENCE_THRESHOLD", "1", "1.0"),
+        ("WAKE_WORD_VAD_THRESHOLD", None, "0.0"),
+        ("WAKE_WORD_VAD_THRESHOLD", "0.6", "0.6"),
+        ("WAKE_WORD_VAD_THRESHOLD", "1", "1.0"),
+        ("WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION", None, "False"),
+        ("WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION", "true", "True"),
+        ("WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION", "off", "False"),
+    ],
+)
+def test_wake_word_environment(name, value, expected):
+    env = os.environ.copy()
+    if value is None:
+        env.pop(name, None)
+    else:
+        env[name] = value
+    result = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import sys; sys.path.insert(0, sys.argv[1]); import config; print(getattr(config, sys.argv[2]))",
+            str(Path(__file__).resolve().parents[1] / "src"), name,
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("WAKE_WORD_CONFIDENCE_THRESHOLD", "0"),
+        ("WAKE_WORD_CONFIDENCE_THRESHOLD", "-0.1"),
+        ("WAKE_WORD_CONFIDENCE_THRESHOLD", "1.1"),
+        ("WAKE_WORD_CONFIDENCE_THRESHOLD", "nan"),
+        ("WAKE_WORD_VAD_THRESHOLD", "-0.1"),
+        ("WAKE_WORD_VAD_THRESHOLD", "1.1"),
+        ("WAKE_WORD_VAD_THRESHOLD", "inf"),
+    ],
+)
+def test_invalid_wake_word_threshold_is_rejected(name, value):
+    env = os.environ.copy()
+    env[name] = value
+    result = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import sys; sys.path.insert(0, sys.argv[1]); import config",
+            str(Path(__file__).resolve().parents[1] / "src"),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert name in result.stderr

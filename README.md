@@ -65,6 +65,22 @@ Piper uses the system's default output device by default. To choose another
 output, set `PIPER_OUTPUT_DEVICE` to a fragment of its device name; PulseAudio
 devices are preferred when multiple matching entries are available.
 
+### Wake-word detection
+
+Set `WAKE_WORD_CONFIDENCE_THRESHOLD` to a value greater than `0` and at most `1`
+(default `0.5`) to adjust wake-word sensitivity. Set `WAKE_WORD_VAD_THRESHOLD`
+between `0` and `1` to enable Silero voice activity detection for wake-word
+predictions; the default `0` disables it. A higher VAD threshold can reduce
+non-speech false positives but may also miss speech.
+
+Set `WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION=true` to enable Speex noise
+suppression for wake-word audio. It defaults to `false` in the app and example
+environment file; the Linux `setup.sh` enables it in newly created service
+environment files. Speex is supported on Linux x86 and ARM64, with the
+`speexdsp-ns` package installed. Enabling it without the backend causes model
+initialization to fail. These settings affect wake-word detection, not the
+subsequent command recording.
+
 ### Command recording
 
 After the wake word, recording continues while sound exceeds the speech energy
@@ -217,7 +233,10 @@ make deploy
 configures and incrementally rebuilds CPU-enabled `llama-server` into
 `/usr/local/bin` and CPU-enabled `whisper.cpp`. It then verifies the app binary,
 generates `.env` from `.env.example`, and registers and starts the three systemd
-services. The llama-server unit uses `--load-mode mmap+mlock` to keep model pages
+services. A newly generated `.env` enables Speex noise suppression; an existing
+`.env` is left untouched, so set `WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION=true`
+there manually if desired. Rebuild and deploy the standalone binary to include
+the Speex backend before enabling it. The llama-server unit uses `--load-mode mmap+mlock` to keep model pages
 resident in RAM and sets an unlimited memlock limit; ensure the host has enough
 available memory for the model and context.
 

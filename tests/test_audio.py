@@ -104,12 +104,24 @@ class TestRollingAudioBuffer:
         assert len(audio_np) == 0
 
 class TestListenForWakeWord:
-    @patch("audio.WAKE_WORD_THRESHOLD", 0.5)
+    @pytest.mark.parametrize(("score", "expected"), [(0.49, False), (0.5, True)])
+    @patch("audio.WAKE_WORD_CONFIDENCE_THRESHOLD", 0.5)
+    @patch("audio.Model")
+    def test_confidence_threshold(self, mock_model_cls, score, expected):
+        mock_model_cls.return_value.predict.return_value = {WAKE_WORD_MODEL: score}
+        manager = WakeWordManager()
+        manager.push_audio_chunk(np.zeros(1280, dtype=np.float32))
+
+        triggered, _ = manager.listen_for_wake_word(RollingAudioBuffer(), DummyEvent())
+
+        assert triggered is expected
+
+    @patch("audio.WAKE_WORD_CONFIDENCE_THRESHOLD", 0.5)
     @patch("audio.Model")
     def test_scenario_clean_wake_word(self, mock_model_cls):
         """Scenario: openWakeWord detects score above threshold using an isolated pipeline instance."""
         mock_model = MagicMock()
-        mock_model.prediction_buffer = {WAKE_WORD_MODEL: [0.95]}
+        mock_model.predict.return_value = {WAKE_WORD_MODEL: 0.95}
         mock_model_cls.return_value = mock_model
 
         pipeline = WakeWordManager()
@@ -122,6 +134,33 @@ class TestListenForWakeWord:
         assert triggered is True
         assert isinstance(noise_floor, float)
         mock_model.predict.assert_called_once()
+
+    @patch("audio.WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION", True)
+    @patch("audio.WAKE_WORD_VAD_THRESHOLD", 0.6)
+    @patch("audio.Model")
+    def test_model_receives_noise_suppression_and_vad_settings(self, mock_model_cls):
+        manager = WakeWordManager()
+
+        assert manager.get_wakeword_model() is manager.get_wakeword_model()
+        mock_model_cls.assert_called_once_with(
+            wakeword_models=[WAKE_WORD_MODEL],
+            enable_speex_noise_suppression=True,
+            vad_threshold=0.6,
+        )
+
+    @patch("audio.WAKE_WORD_CONFIDENCE_THRESHOLD", 0.5)
+    @patch("audio.Model")
+    def test_vad_filtered_prediction_does_not_trigger(self, mock_model_cls):
+        mock_model = mock_model_cls.return_value
+        mock_model.prediction_buffer = {WAKE_WORD_MODEL: [0.95]}
+        mock_model.predict.return_value = {WAKE_WORD_MODEL: 0.0}
+        manager = WakeWordManager()
+        manager.push_audio_chunk(np.zeros(1280, dtype=np.float32))
+
+        triggered, _ = manager.listen_for_wake_word(RollingAudioBuffer(), DummyEvent())
+
+        assert triggered is False
+        mock_model.reset.assert_not_called()
 
     @patch("audio.Model")
     def test_scenario_queue_timeout_returns_false(self, mock_model_cls):

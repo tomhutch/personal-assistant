@@ -12,7 +12,9 @@ from config import (
     COMMAND_MIN_SPEECH_RMS,
     COMMAND_SILENCE_DURATION,
     WAKE_WORD_MODEL,
-    WAKE_WORD_THRESHOLD,
+    WAKE_WORD_CONFIDENCE_THRESHOLD,
+    WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION,
+    WAKE_WORD_VAD_THRESHOLD,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,7 +40,11 @@ class WakeWordManager:
         if self._oww_model is None:
             logger.info("📦 [openWakeWord] Initializing and loading model '%s'...", WAKE_WORD_MODEL)
             try:
-                self._oww_model = Model(wakeword_models=[WAKE_WORD_MODEL])
+                self._oww_model = Model(
+                    wakeword_models=[WAKE_WORD_MODEL],
+                    enable_speex_noise_suppression=WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION,
+                    vad_threshold=WAKE_WORD_VAD_THRESHOLD,
+                )
                 logger.info("✅ [openWakeWord] Model loaded successfully!")
             except Exception as e:
                 logger.error("❌ [openWakeWord] Failed to load model: %s", e, exc_info=True)
@@ -64,12 +70,11 @@ class WakeWordManager:
                 break
                 
             audio_int16 = (audio_chunk * 32767).astype(np.int16)
-            model.predict(audio_int16)
-            score = model.prediction_buffer[WAKE_WORD_MODEL][-1]
+            score = model.predict(audio_int16)[WAKE_WORD_MODEL]
             
             logger.debug("Wake word score ('%s'): %.4f", WAKE_WORD_MODEL, score)
             
-            if score >= WAKE_WORD_THRESHOLD:
+            if score >= WAKE_WORD_CONFIDENCE_THRESHOLD:
                 logger.info("✨ Wake word '%s' detected! Confidence: %.2f", WAKE_WORD_MODEL, score)
                 rolling_buffer.clear()
                 model.reset()

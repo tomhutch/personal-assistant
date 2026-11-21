@@ -13,7 +13,15 @@ SAMPLE_RATE = 16000  # openWakeWord natively expects 16kHz audio
 
 # Wake Word Config
 WAKE_WORD_MODEL = "hey_jarvis"  # Options: "alexa", "hey_jarvis", "hey_mycroft", "hey_rhasspy" (https://github.com/dscripka/openWakeWord/tree/main/docs/models)
-WAKE_WORD_THRESHOLD = 0.5   # Confidence threshold between 0.0 and 1.0
+WAKE_WORD_CONFIDENCE_THRESHOLD = float(os.getenv("WAKE_WORD_CONFIDENCE_THRESHOLD", "0.5"))
+if not math.isfinite(WAKE_WORD_CONFIDENCE_THRESHOLD) or not 0 < WAKE_WORD_CONFIDENCE_THRESHOLD <= 1:
+    raise ValueError("WAKE_WORD_CONFIDENCE_THRESHOLD must be greater than 0 and at most 1")
+WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION = os.getenv(
+    "WAKE_WORD_ENABLE_SPEEX_NOISE_SUPPRESSION", "false"
+).strip().lower() not in {"", "0", "false", "no", "off"}
+WAKE_WORD_VAD_THRESHOLD = float(os.getenv("WAKE_WORD_VAD_THRESHOLD", "0.5"))
+if not math.isfinite(WAKE_WORD_VAD_THRESHOLD) or not 0 <= WAKE_WORD_VAD_THRESHOLD <= 1:
+    raise ValueError("WAKE_WORD_VAD_THRESHOLD must be between 0 and 1")
 
 # Command recording configuration
 COMMAND_MAX_DURATION = 10.0         # Hard safety limit for command recording in seconds
