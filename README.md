@@ -1,6 +1,6 @@
 # Personal Assistant
 
-A lightweight local voice controlled personal assistant that captures microphone input, transcribes via local `whisper-server`, parses intent using an SLM (Qwen 2.5 0.5B), and controls Home Assistant devices.
+A lightweight local voice controlled personal assistant that captures microphone input, transcribes via local `whisper-server`, parses intent using either an SLM (Qwen 2.5 0.5B) or deterministic Hassil intents, and controls Home Assistant devices (and other things).
 
 ---
 
